@@ -1,4 +1,4 @@
-# 🎵 Bracketbeat
+# 🎵 Music Tournament
 
 Jackbox-style music tournament app. Everyone joins a room from their own device, submits
 song picks within the organizer's parameters, and the group votes head-to-head through a
