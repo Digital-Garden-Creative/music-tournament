@@ -1,0 +1,8 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Room from '../components/Room.tsx';
+---
+
+<Layout>
+  <Room client:only="react" />
+</Layout>

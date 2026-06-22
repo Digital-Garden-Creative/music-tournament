@@ -1,0 +1,9 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# PUBLIC_SUPABASE_URL and PUBLIC_SUPABASE_ANON_KEY must be set in the Netlify
+# site environment (Site settings → Environment variables).

@@ -1,0 +1,14 @@
+{
+  "name": "bracketbeat-rip-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local worker that rips audio-only picks to MP3 with yt-dlp and uploads to Supabase Storage.",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "dotenv": "^16.4.5"
+  }
+}
