@@ -1,7 +1,7 @@
 import type { Session } from './types';
 
 // One active seat per browser tab, keyed by room code so multiple rooms don't clobber.
-const KEY = 'mt_session';
+const KEY = 'song-tournament-session';
 
 export function saveSession(s: Session): void {
   localStorage.setItem(KEY, JSON.stringify(s));

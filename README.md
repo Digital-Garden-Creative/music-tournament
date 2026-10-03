@@ -1,6 +1,6 @@
-# 🎵 Music Tournament
+# 🎵 Song Tournament
 
-Jackbox-style music tournament app. Everyone joins a room from their own device, submits
+Jackbox-style song tournament app. Everyone joins a room from their own device, submits
 song picks within the organizer's parameters, and the group votes head-to-head through a
 single-elimination bracket until one track is crowned champion.
 

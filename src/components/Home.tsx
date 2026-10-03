@@ -41,7 +41,7 @@ export default function Home() {
         <span className="text-3xl">🎵</span>
       </div>
       <h1 className="bg-gradient-to-r from-fuchsia-400 via-violet-400 to-sky-400 bg-clip-text text-center text-5xl font-black tracking-tight text-transparent">
-        Bracketbeat
+        Song Tournament
       </h1>
       <p className="mt-3 text-center text-zinc-400">
         Pick your songs. Seed the bracket. Crown a champion.

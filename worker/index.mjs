@@ -1,4 +1,4 @@
-// Bracketbeat rip worker.
+// Song Tournament rip worker.
 //
 // Polls the rip_jobs queue, runs yt-dlp + ffmpeg to produce an MP3 for each audio-only
 // pick, uploads it to the Supabase Storage `audio` bucket, and writes the public URL back
@@ -54,7 +54,7 @@ async function claimJob() {
 }
 
 async function rip(youtubeId) {
-  const dir = await mkdtemp(join(tmpdir(), 'bracketbeat-'));
+  const dir = await mkdtemp(join(tmpdir(), 'song-tournament-'));
   const out = join(dir, `${youtubeId}.%(ext)s`);
   const mp3 = join(dir, `${youtubeId}.mp3`);
   try {
@@ -113,5 +113,5 @@ async function loop() {
   }
 }
 
-console.log(`Bracketbeat rip worker started — polling every ${POLL_MS}ms`);
+console.log(`Song Tournament rip worker started — polling every ${POLL_MS}ms`);
 loop();

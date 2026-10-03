@@ -1,4 +1,4 @@
--- Music Tournament — initial schema, RLS, views, and RPCs.
+-- Song Tournament — initial schema, RLS, views, and RPCs.
 --
 -- Security model (friends-scale app, no full auth):
 --   * Identity is a random session_token per player; the organizer also holds a host_token.
