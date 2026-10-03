@@ -152,17 +152,17 @@ grant select on v_submission_counts to anon, authenticated;
 create or replace function gen_room_code() returns text language plpgsql as $$
 declare
   alphabet text := 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';  -- no easily-confused chars
-  code text;
+  v_code text;  -- not `code`: that would be ambiguous with rooms.code in the query below
   i int;
 begin
   loop
-    code := '';
+    v_code := '';
     for i in 1..4 loop
-      code := code || substr(alphabet, 1 + floor(random()*length(alphabet))::int, 1);
+      v_code := v_code || substr(alphabet, 1 + floor(random()*length(alphabet))::int, 1);
     end loop;
-    exit when not exists (select 1 from rooms where rooms.code = code);
+    exit when not exists (select 1 from rooms where rooms.code = v_code);
   end loop;
-  return code;
+  return v_code;
 end $$;
 
 -- Resolve a host's room from the host_token (raises if invalid).
@@ -256,7 +256,7 @@ declare r rooms;
 begin
   r := _room_for_host(p_host_token);
   update rooms set params = params || p_params where id = r.id returning * into r;
-  return row_to_json(r.params);
+  return r.params::json;
 end $$;
 
 create or replace function set_room_status(p_host_token uuid, p_status text)
@@ -514,8 +514,23 @@ begin
     where s.room_id = p_room_id;
 end $$;
 
--- Allow anon to call the RPCs.
-grant execute on all functions in schema public to anon, authenticated;
+-- Internal helpers must not be callable over the API (e.g. _do_close_match would let anyone
+-- close a match without the host token). Postgres grants EXECUTE to PUBLIC by default and
+-- Supabase also grants it to anon/authenticated, so revoke from all three. The RPCs above
+-- still work because they run as the owner (SECURITY DEFINER).
+revoke execute on function
+  gen_room_code(), _room_for_host(uuid), _player_for_session(uuid),
+  _advance_winner(matches), _do_close_match(uuid)
+  from public, anon, authenticated;
+
+-- Allow anon to call the public RPCs.
+grant execute on function
+  create_room(text, jsonb), join_room(text, text), resume_session(uuid),
+  heartbeat(uuid, boolean), update_room_params(uuid, jsonb), set_room_status(uuid, text),
+  submit_pick(uuid, text, text, text, text), delete_pick(uuid, uuid), my_picks(uuid),
+  seed_bracket(uuid), open_match(uuid, uuid), cast_vote(uuid, uuid, uuid),
+  close_match(uuid, uuid), start_revote(uuid, uuid), reveal_room(uuid), ownership(uuid)
+  to anon, authenticated;
 
 -- Realtime: broadcast row changes for room state and matches.
 alter publication supabase_realtime add table rooms;
