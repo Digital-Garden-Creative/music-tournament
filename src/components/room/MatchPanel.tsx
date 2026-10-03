@@ -1,17 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
-import { castVote, closeMatch, startRevote } from '../../lib/api';
+import { useEffect, useState } from 'react';
+import { castVote, closeExpiredMatch, closeMatch, startRevote } from '../../lib/api';
 import { youTubeEmbed } from '../../lib/youtube';
 import type { Match, PublicSubmission } from '../../lib/types';
-import type { RoomState } from '../../lib/useRoom';
+import type { ReadyRoomState } from '../../lib/useRoom';
 
 export default function MatchPanel({ match, subsById, state }: {
-  match: Match; subsById: Map<string, PublicSubmission>; state: RoomState;
+  match: Match; subsById: Map<string, PublicSubmission>; state: ReadyRoomState;
 }) {
-  const { session, players } = state;
+  const { session, players, owners } = state;
   const a = match.song_a ? subsById.get(match.song_a) : null;
   const b = match.song_b ? subsById.get(match.song_b) : null;
-  const isHost = session!.isHost;
-  const myId = session!.playerId;
+  const isHost = session.isHost;
+  const myId = session.playerId;
 
   const [choice, setChoice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -21,23 +21,24 @@ export default function MatchPanel({ match, subsById, state }: {
 
   const remaining = useCountdown(match.closes_at, match.status === 'open');
   const haveVoted = match.voted_player_ids.includes(myId);
-  const connected = players.filter((p) => p.connected).length;
+  const voterCount = match.eligible_voters ?? players.filter((p) => p.connected).length;
 
-  // Host auto-closes the match when the timer expires.
-  const closedOnce = useRef<string>('');
+  // When the timer runs out, every client asks the server to close the match, so voting
+  // doesn't stall if the organizer's tab is closed. Calls are staggered, and retried
+  // because the server ignores them until its own clock says time is up.
+  const expired = match.status === 'open' && remaining === 0;
   useEffect(() => {
-    if (!isHost || match.status !== 'open' || remaining === null) return;
-    const key = `${match.id}:${match.vote_round}`;
-    if (remaining <= 0 && closedOnce.current !== key) {
-      closedOnce.current = key;
-      closeMatch(session!.hostToken!, match.id).catch(() => {});
-    }
-  }, [remaining, isHost, match.status, match.id, match.vote_round]);
+    if (!expired) return;
+    const close = () => { closeExpiredMatch(session.sessionToken, match.id).catch(() => {}); };
+    const first = setTimeout(close, 300 + Math.random() * 1200);
+    const retry = setInterval(close, 3000);
+    return () => { clearTimeout(first); clearInterval(retry); };
+  }, [expired, session.sessionToken, match.id, match.vote_round]);
 
   async function vote(songId: string) {
     setError(null);
     setChoice(songId);
-    try { await castVote(session!.sessionToken, match.id, songId); }
+    try { await castVote(session.sessionToken, match.id, songId); }
     catch (err) { setError((err as Error).message); setChoice(null); }
   }
 
@@ -63,6 +64,7 @@ export default function MatchPanel({ match, subsById, state }: {
         <SongChoice
           song={a} side="a" votes={match.votes_a} revealed={revealed}
           winner={match.winner === match.song_a}
+          owner={a ? owners[a.id] : undefined}
           selected={choice === match.song_a}
           disabled={match.status !== 'open'}
           onVote={() => a && vote(a.id)}
@@ -70,6 +72,7 @@ export default function MatchPanel({ match, subsById, state }: {
         <SongChoice
           song={b} side="b" votes={match.votes_b} revealed={revealed}
           winner={match.winner === match.song_b}
+          owner={b ? owners[b.id] : undefined}
           selected={choice === match.song_b}
           disabled={match.status !== 'open'}
           onVote={() => b && vote(b.id)}
@@ -82,7 +85,7 @@ export default function MatchPanel({ match, subsById, state }: {
         <span>
           {match.status === 'open' && (
             <>{haveVoted ? '✓ Vote locked in (tap a card to change). ' : 'Cast your vote. '}
-            {match.voted_player_ids.length}/{connected} voted</>
+            {match.voted_player_ids.length}/{voterCount} voted</>
           )}
           {tie && 'Votes were even — the organizer will reopen voting.'}
           {revealed && 'Match complete.'}
@@ -91,14 +94,14 @@ export default function MatchPanel({ match, subsById, state }: {
         {isHost && (
           <div className="flex gap-2">
             {match.status === 'open' && (
-              <button onClick={() => closeMatch(session!.hostToken!, match.id)}
-                className="rounded-lg border border-zinc-700 px-3 py-1.5 text-zinc-200 transition hover:bg-zinc-800">
+              <button onClick={() => closeMatch(session.hostToken!, match.id).catch((e) => setError(e.message))}
+                className="min-h-[36px] rounded-lg border border-zinc-700 px-3 py-1.5 text-zinc-200 transition hover:bg-zinc-800">
                 Close now
               </button>
             )}
             {tie && (
-              <button onClick={() => startRevote(session!.hostToken!, match.id)}
-                className="rounded-lg bg-amber-600 px-3 py-1.5 font-semibold text-white transition hover:bg-amber-500">
+              <button onClick={() => startRevote(session.hostToken!, match.id).catch((e) => setError(e.message))}
+                className="min-h-[36px] rounded-lg bg-amber-600 px-3 py-1.5 font-semibold text-white transition hover:bg-amber-500">
                 Start re-vote
               </button>
             )}
@@ -109,9 +112,9 @@ export default function MatchPanel({ match, subsById, state }: {
   );
 }
 
-function SongChoice({ song, side, votes, revealed, winner, selected, disabled, onVote }: {
+function SongChoice({ song, side, votes, revealed, winner, owner, selected, disabled, onVote }: {
   song: PublicSubmission | null | undefined;
-  side: 'a' | 'b'; votes: number | null; revealed: boolean;
+  side: 'a' | 'b'; votes: number | null; revealed: boolean; owner: string | undefined;
   winner: boolean; selected: boolean; disabled: boolean; onVote: () => void;
 }) {
   if (!song) return <div className="rounded-xl border border-zinc-800 p-6 text-center text-zinc-600">— bye —</div>;
@@ -124,6 +127,7 @@ function SongChoice({ song, side, votes, revealed, winner, selected, disabled, o
       <SongPlayer song={song} />
       <div className="p-3">
         <p className="truncate font-medium">{song.title}</p>
+        {owner && <p className="truncate text-xs text-zinc-500">picked by {owner}</p>}
         <div className="mt-2 flex items-center justify-between">
           {revealed ? (
             <span className={`text-sm font-bold ${winner ? 'text-emerald-300' : 'text-zinc-500'}`}>
@@ -131,7 +135,7 @@ function SongChoice({ song, side, votes, revealed, winner, selected, disabled, o
             </span>
           ) : (
             <button onClick={onVote} disabled={disabled}
-              className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition disabled:opacity-40 ${
+              className={`min-h-[36px] rounded-lg px-4 py-1.5 text-sm font-semibold transition disabled:opacity-40 ${
                 selected ? 'bg-fuchsia-600 text-white' : 'bg-zinc-800 text-zinc-100 hover:bg-fuchsia-600 hover:text-white'
               }`}>
               {selected ? '✓ Voted' : `Vote ${side.toUpperCase()}`}
@@ -175,5 +179,5 @@ function useCountdown(iso: string | null, active: boolean): number | null {
     return () => clearInterval(id);
   }, [active]);
   if (!iso) return null;
-  return Math.max(0, Math.round((new Date(iso).getTime() - now) / 1000));
+  return Math.max(0, Math.ceil((new Date(iso).getTime() - now) / 1000));
 }

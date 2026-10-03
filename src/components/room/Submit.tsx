@@ -4,10 +4,9 @@ import {
 } from '../../lib/api';
 import { parseYouTubeId, youTubeThumb } from '../../lib/youtube';
 import type { MyPick } from '../../lib/types';
-import type { RoomState } from '../../lib/useRoom';
+import type { ReadyRoomState } from '../../lib/useRoom';
 
-export default function Submit({ session, room }: RoomState) {
-  if (!session || !room) return null;
+export default function Submit({ session, room }: ReadyRoomState) {
   const cap = room.params.songs_per_player;
   const [picks, setPicks] = useState<MyPick[]>([]);
   const [title, setTitle] = useState('');
@@ -17,18 +16,18 @@ export default function Submit({ session, room }: RoomState) {
   const [busy, setBusy] = useState(false);
 
   async function load() {
-    try { setPicks(await myPicks(session!.sessionToken)); } catch { /* ignore */ }
+    try { setPicks(await myPicks(session.sessionToken)); } catch { /* ignore */ }
   }
   useEffect(() => { load(); }, []);
 
-  async function add(e: React.FormEvent<HTMLFormElement>) {
+  async function add(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     const ytId = parseYouTubeId(url);
     if (!ytId) { setError('Please paste a valid YouTube link.'); return; }
     setBusy(true);
     try {
-      await submitPick(session!.sessionToken, title.trim() || 'Untitled', url.trim(), ytId, media);
+      await submitPick(session.sessionToken, title.trim() || 'Untitled', url.trim(), ytId, media);
       setTitle(''); setUrl(''); setMedia('video');
       await load();
     } catch (err) { setError((err as Error).message); }
@@ -36,7 +35,7 @@ export default function Submit({ session, room }: RoomState) {
   }
 
   async function remove(id: string) {
-    try { await deletePick(session!.sessionToken, id); await load(); }
+    try { await deletePick(session.sessionToken, id); await load(); }
     catch (err) { setError((err as Error).message); }
   }
 
@@ -71,7 +70,7 @@ export default function Submit({ session, room }: RoomState) {
                 </p>
               </div>
               <button onClick={() => remove(p.id)}
-                className="rounded-lg px-2 py-1 text-sm text-zinc-500 transition hover:bg-zinc-800 hover:text-rose-400">
+                className="min-h-[36px] rounded-lg px-2 py-1 text-sm text-zinc-500 transition hover:bg-zinc-800 hover:text-rose-400">
                 Remove
               </button>
             </li>
@@ -116,14 +115,13 @@ export default function Submit({ session, room }: RoomState) {
   );
 }
 
-function HostPanel({ session, cap }: { session: RoomState['session']; cap: number }) {
-  if (!session) return null;
+function HostPanel({ session, cap }: { session: ReadyRoomState['session']; cap: number }) {
   const [counts, setCounts] = useState<{ player_id: string; display_name: string; submitted: number }[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session.isHost) return;
-    const load = () => getSubmissionCounts(session.roomId).then((c) => setCounts(c as typeof counts));
+    const load = () => getSubmissionCounts(session.roomId).then((c) => setCounts(c as typeof counts)).catch(() => {});
     load();
     const id = setInterval(load, 4000);
     return () => clearInterval(id);
@@ -142,7 +140,7 @@ function HostPanel({ session, cap }: { session: RoomState['session']; cap: numbe
 
   async function seed() {
     setError(null);
-    try { await seedBracket(session!.hostToken!); }
+    try { await seedBracket(session.hostToken!); }
     catch (err) { setError((err as Error).message); }
   }
 
@@ -179,7 +177,7 @@ function MediaPill({ active, onClick, children }: {
 }) {
   return (
     <button type="button" onClick={onClick}
-      className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
+      className={`min-h-[36px] rounded-full px-3 py-1.5 text-sm font-medium transition ${
         active ? 'bg-fuchsia-600 text-white' : 'border border-zinc-700 text-zinc-300 hover:bg-zinc-800'
       }`}>
       {children}

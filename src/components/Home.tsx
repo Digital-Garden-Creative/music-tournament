@@ -11,7 +11,7 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleCreate(e: React.FormEvent<HTMLFormElement>) {
+  async function handleCreate(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true); setError(null);
     try {
@@ -23,7 +23,7 @@ export default function Home() {
     }
   }
 
-  async function handleJoin(e: React.FormEvent<HTMLFormElement>) {
+  async function handleJoin(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true); setError(null);
     try {

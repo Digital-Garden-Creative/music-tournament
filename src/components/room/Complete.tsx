@@ -1,24 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ownership } from '../../lib/api';
+import { useMemo } from 'react';
 import { clearSession } from '../../lib/session';
 import { youTubeThumb } from '../../lib/youtube';
 import type { PublicSubmission } from '../../lib/types';
-import type { RoomState } from '../../lib/useRoom';
+import type { ReadyRoomState } from '../../lib/useRoom';
 
-export default function Complete({ session, room, matches, submissions }: RoomState) {
-  if (!session || !room) return null;
-  const [owners, setOwners] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    ownership(room.id)
-      .then((rows) => {
-        const map: Record<string, string> = {};
-        rows.forEach((r) => { map[r.submission_id] = r.display_name; });
-        setOwners(map);
-      })
-      .catch(() => {});
-  }, [room.id]);
-
+export default function Complete({ room, matches, submissions, owners }: ReadyRoomState) {
   const subsById = useMemo(() => {
     const m = new Map<string, PublicSubmission>();
     submissions.forEach((s) => m.set(s.id, s));
@@ -56,7 +42,7 @@ export default function Complete({ session, room, matches, submissions }: RoomSt
       </ul>
 
       <div className="mt-8 text-center">
-        <a href="/" onClick={() => clearSession()}
+        <a href="/" onClick={() => clearSession(room.code)}
           className="inline-block rounded-xl border border-zinc-700 px-5 py-2.5 text-sm font-medium text-zinc-200 transition hover:bg-zinc-800">
           Start a new tournament
         </a>

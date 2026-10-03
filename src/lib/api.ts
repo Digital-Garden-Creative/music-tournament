@@ -94,6 +94,11 @@ export function closeMatch(hostToken: string, matchId: string): Promise<void> {
   return rpc('close_match', { p_host_token: hostToken, p_match_id: matchId });
 }
 
+/** Any player may close a match once its timer has run out (a no-op before then). */
+export function closeExpiredMatch(sessionToken: string, matchId: string): Promise<void> {
+  return rpc('close_expired_match', { p_session_token: sessionToken, p_match_id: matchId });
+}
+
 export function startRevote(hostToken: string, matchId: string): Promise<void> {
   return rpc('start_revote', { p_host_token: hostToken, p_match_id: matchId });
 }

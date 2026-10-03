@@ -1,4 +1,4 @@
-export type RoomStatus = 'lobby' | 'submitting' | 'seeding' | 'in_progress' | 'complete';
+export type RoomStatus = 'lobby' | 'submitting' | 'in_progress' | 'complete';
 export type MediaType = 'video' | 'audio';
 export type RipStatus = 'none' | 'pending' | 'processing' | 'ready' | 'failed';
 export type MatchStatus = 'pending' | 'open' | 'discussion' | 'closed';
@@ -55,6 +55,8 @@ export interface Match {
   status: MatchStatus;
   vote_round: number;
   voted_player_ids: string[];
+  /** Voters this round is waiting on plus those who already voted (set by the server). */
+  eligible_voters: number | null;
   votes_a: number | null;
   votes_b: number | null;
   opened_at: string | null;

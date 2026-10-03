@@ -31,6 +31,26 @@ const supabase = createClient(SUPABASE_URL, SERVICE_KEY, {
   auth: { persistSession: false },
 });
 
+// A rip is killed after 5 minutes, so a job still "processing" well past that belongs to a
+// worker that crashed or was stopped mid-rip.
+const STALE_MS = 10 * 60 * 1000;
+
+/** Put abandoned "processing" jobs back in the queue. */
+async function requeueStale() {
+  const cutoff = new Date(Date.now() - STALE_MS).toISOString();
+  const { data: stale } = await supabase
+    .from('rip_jobs')
+    .update({ status: 'pending', claimed_at: null })
+    .eq('status', 'processing')
+    .lt('claimed_at', cutoff)
+    .select('submission_id');
+  if (!stale || stale.length === 0) return;
+  await supabase.from('submissions')
+    .update({ rip_status: 'pending' })
+    .in('id', stale.map((j) => j.submission_id));
+  console.log(`↺ re-queued ${stale.length} stale job(s)`);
+}
+
 /** Atomically claim one pending job by flipping it to "processing". */
 async function claimJob() {
   const { data: pending } = await supabase
@@ -102,8 +122,10 @@ async function processJob(job) {
 }
 
 async function loop() {
+  let lastSweep = 0;
   for (;;) {
     try {
+      if (Date.now() - lastSweep > 60_000) { lastSweep = Date.now(); await requeueStale(); }
       const job = await claimJob();
       if (job) { await processJob(job); continue; }
     } catch (err) {
