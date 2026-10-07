@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { openMatch, revealRoom } from '../../lib/api';
 import type { Match, PublicSubmission } from '../../lib/types';
-import type { RoomState } from '../../lib/useRoom';
+import type { ReadyRoomState } from '../../lib/useRoom';
 import MatchPanel from './MatchPanel';
 import { PlayerList } from './Lobby';
 
@@ -13,9 +13,10 @@ const ROUND_NAME = (round: number, totalRounds: number) => {
   return `Round ${round}`;
 };
 
-export default function Bracket(state: RoomState) {
-  const { session, room, matches, submissions, players } = state;
-  if (!session || !room) return null;
+export default function Bracket(state: ReadyRoomState) {
+  const { session, matches, submissions, players, owners } = state;
+  const [error, setError] = useState<string | null>(null);
+  const act = (p: Promise<unknown>) => { setError(null); p.catch((e: Error) => setError(e.message)); };
 
   const subsById = useMemo(() => {
     const m = new Map<string, PublicSubmission>();
@@ -35,10 +36,14 @@ export default function Bracket(state: RoomState) {
 
   const active = matches.find((m) => m.status === 'open' || m.status === 'discussion') ?? null;
   const champion = matches.find((m) => m.round === totalRounds)?.winner ?? null;
+  // Between matches, keep the last result on screen (byes were never opened, so skip them).
+  const lastPlayed = matches
+    .filter((m) => m.status === 'closed' && m.opened_at)
+    .sort((x, y) => y.opened_at!.localeCompare(x.opened_at!))[0] ?? null;
   const isHost = session.isHost;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_260px]">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
       <div>
         {active ? (
           <MatchPanel match={active} subsById={subsById} state={state} />
@@ -46,13 +51,18 @@ export default function Bracket(state: RoomState) {
           <ChampionBanner
             title={subsById.get(champion)?.title ?? 'Champion'}
             isHost={isHost}
-            onReveal={() => revealRoom(session.hostToken!)}
+            onReveal={() => act(revealRoom(session.hostToken!))}
           />
         ) : (
-          <div className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6 text-zinc-400">
-            {isHost ? 'Pick a match below and open it to start voting.' : 'Waiting for the organizer to open the next match…'}
-          </div>
+          <>
+            {lastPlayed && <MatchPanel match={lastPlayed} subsById={subsById} state={state} />}
+            <div className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6 text-zinc-400">
+              {isHost ? 'Pick a match below and open it to start voting.' : 'Waiting for the organizer to open the next match…'}
+            </div>
+          </>
         )}
+
+        {error && <p className="mb-4 text-sm text-rose-400">{error}</p>}
 
         <div className="flex gap-6 overflow-x-auto pb-4">
           {rounds.map(([round, ms]) => (
@@ -63,9 +73,9 @@ export default function Bracket(state: RoomState) {
               <div className="flex flex-col gap-3">
                 {ms.sort((a, b) => a.slot - b.slot).map((m) => (
                   <MatchCard
-                    key={m.id} match={m} subsById={subsById}
+                    key={m.id} match={m} subsById={subsById} owners={owners}
                     canOpen={isHost && !active && m.status === 'pending' && !!m.song_a && !!m.song_b}
-                    onOpen={() => openMatch(session.hostToken!, m.id)}
+                    onOpen={() => act(openMatch(session.hostToken!, m.id))}
                   />
                 ))}
               </div>
@@ -79,8 +89,8 @@ export default function Bracket(state: RoomState) {
   );
 }
 
-function MatchCard({ match, subsById, canOpen, onOpen }: {
-  match: Match; subsById: Map<string, PublicSubmission>;
+function MatchCard({ match, subsById, owners, canOpen, onOpen }: {
+  match: Match; subsById: Map<string, PublicSubmission>; owners: Record<string, string>;
   canOpen: boolean; onOpen: () => void;
 }) {
   const a = match.song_a ? subsById.get(match.song_a) : null;
@@ -91,7 +101,10 @@ function MatchCard({ match, subsById, canOpen, onOpen }: {
       <div className={`flex items-center justify-between gap-2 px-3 py-2 text-sm ${
         isWinner ? 'font-semibold text-emerald-300' : 'text-zinc-300'
       }`}>
-        <span className="truncate">{s ? s.title : <span className="text-zinc-600">— bye —</span>}</span>
+        <span className="min-w-0 truncate">
+          {s ? s.title : <span className="text-zinc-600">{match.round === 1 ? '— bye —' : 'TBD'}</span>}
+          {s && owners[s.id] && <span className="ml-1.5 text-xs font-normal text-zinc-500">· {owners[s.id]}</span>}
+        </span>
         {match.status === 'closed' && votes !== null && (
           <span className="shrink-0 text-xs text-zinc-500">{votes}</span>
         )}
@@ -109,7 +122,7 @@ function MatchCard({ match, subsById, canOpen, onOpen }: {
       {row(b, match.song_b, match.votes_b)}
       {canOpen && (
         <button onClick={onOpen}
-          className="w-full bg-fuchsia-600/90 py-1.5 text-xs font-semibold text-white transition hover:bg-fuchsia-500">
+          className="min-h-[36px] w-full bg-fuchsia-600/90 py-1.5 text-xs font-semibold text-white transition hover:bg-fuchsia-500">
           Open voting
         </button>
       )}

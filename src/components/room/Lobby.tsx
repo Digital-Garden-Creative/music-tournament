@@ -1,33 +1,48 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { setStatus, updateParams } from '../../lib/api';
-import type { RoomState } from '../../lib/useRoom';
+import type { RoomParams } from '../../lib/types';
+import type { ReadyRoomState, RoomState } from '../../lib/useRoom';
 
-export default function Lobby({ session, room, players }: RoomState) {
-  if (!session || !room) return null;
+export default function Lobby({ session, room, players }: ReadyRoomState) {
   const isHost = session.isHost;
   const [params, setLocal] = useState(room.params);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function save<K extends keyof typeof params>(key: K, value: (typeof params)[K]) {
-    const next = { ...params, [key]: value };
-    setLocal(next);
-    if (!session!.hostToken) return;
+  // Edits are batched and saved after a short pause rather than once per keystroke.
+  const pending = useRef<Partial<RoomParams>>({});
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const flush = useCallback(async () => {
+    clearTimeout(timer.current);
+    const patch = pending.current;
+    pending.current = {};
+    if (!session.hostToken || Object.keys(patch).length === 0) return;
     setSaving(true);
-    try {
-      await updateParams(session!.hostToken, { [key]: value });
-    } catch (err) { setError((err as Error).message); }
+    try { await updateParams(session.hostToken, patch); }
+    catch (err) { setError((err as Error).message); }
     finally { setSaving(false); }
+  }, [session.hostToken]);
+
+  useEffect(() => () => { flush(); }, [flush]);
+
+  function save<K extends keyof RoomParams>(key: K, value: RoomParams[K]) {
+    setLocal((p) => ({ ...p, [key]: value }));
+    pending.current = { ...pending.current, [key]: value };
+    clearTimeout(timer.current);
+    timer.current = setTimeout(flush, 500);
   }
 
   async function openSubmissions() {
     setError(null);
-    try { await setStatus(session!.hostToken!, 'submitting'); }
-    catch (err) { setError((err as Error).message); }
+    try {
+      await flush();
+      await setStatus(session.hostToken!, 'submitting');
+    } catch (err) { setError((err as Error).message); }
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-[1fr_280px]">
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_280px]">
       <section className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6">
         <h2 className="text-lg font-semibold">Tournament settings</h2>
         {isHost ? (
@@ -71,7 +86,9 @@ export default function Lobby({ session, room, players }: RoomState) {
             <li><span className="text-zinc-500">Theme:</span> {room.params.theme || '—'}</li>
             <li><span className="text-zinc-500">Songs per player:</span> {room.params.songs_per_player}</li>
             <li><span className="text-zinc-500">Vote timer:</span> {room.params.vote_timer_seconds}s</li>
-            <p className="pt-3 text-zinc-500">Waiting for the organizer to open submissions…</p>
+            <li><span className="text-zinc-500">Vote on your own picks:</span> {room.params.allow_self_vote ? 'allowed' : 'not allowed'}</li>
+            <li><span className="text-zinc-500">Picks:</span> {room.params.anonymous ? 'anonymous until the end' : 'names shown'}</li>
+            <li className="pt-3 text-zinc-500">Waiting for the organizer to open submissions…</li>
           </ul>
         )}
       </section>
@@ -109,13 +126,26 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+// Keeps its own text so partial input ("3" on the way to "30") isn't clamped mid-typing;
+// only in-range values are saved, and blur snaps the field back into range.
 function NumberInput({ value, min, max, onChange }: {
   value: number; min: number; max: number; onChange: (v: number) => void;
 }) {
+  const [text, setText] = useState(String(value));
   return (
     <input
-      type="number" value={value} min={min} max={max}
-      onChange={(e) => onChange(Math.max(min, Math.min(max, Number(e.target.value))))}
+      type="number" inputMode="numeric" value={text} min={min} max={max}
+      onChange={(e) => {
+        setText(e.target.value);
+        const n = Number(e.target.value);
+        if (e.target.value !== '' && Number.isInteger(n) && n >= min && n <= max) onChange(n);
+      }}
+      onBlur={() => {
+        const n = Number(text);
+        const clamped = Number.isFinite(n) && text !== '' ? Math.max(min, Math.min(max, Math.round(n))) : value;
+        setText(String(clamped));
+        if (clamped !== value) onChange(clamped);
+      }}
       className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:border-fuchsia-500"
     />
   );

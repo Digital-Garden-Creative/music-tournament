@@ -1,12 +1,12 @@
-# 🎵 Music Tournament
+# 🎵 Song Tournament
 
-Jackbox-style music tournament app. Everyone joins a room from their own device, submits
+Jackbox-style song tournament app. Everyone joins a room from their own device, submits
 song picks within the organizer's parameters, and the group votes head-to-head through a
 single-elimination bracket until one track is crowned champion.
 
 ## Features
 
-- **Rooms** — host creates a room, players join with a 4-character code.
+- **Rooms** — host creates a room, players join with a 4-character code or an invite link.
 - **Roles** — the organizer (TO) sets parameters and drives the tournament, and can also
   play; everyone else submits picks and votes.
 - **Picks** — paste a YouTube link per song. Default to a **video** embed (great for
@@ -14,9 +14,12 @@ single-elimination bracket until one track is crowned champion.
   background by a local worker.
 - **Seeding** — picks are shuffled into a single-elimination bracket (with byes for
   non-power-of-two counts), kept **anonymous** until the end.
-- **Voting** — TO opens a match with a countdown timer; it closes early once everyone has
-  voted. **Ties** drop into a discussion state, then the TO reopens voting (a clean re-vote).
-- **Reveal** — at the end, every pick is de-anonymized so you see who chose what.
+- **Voting** — TO opens a match with a countdown timer; it closes early once every online
+  player who's allowed to vote has voted (with self-voting off, a match's two submitters
+  sit it out). Any player's device closes the match when the timer runs out, so it doesn't
+  depend on the TO's tab staying open. **Ties** drop into a discussion state, then the TO reopens voting (a clean re-vote).
+- **Reveal** — at the end, every pick is de-anonymized so you see who chose what. (With
+  "anonymous picks" off, names show throughout.)
 
 ## Stack
 
@@ -62,7 +65,7 @@ bucket, and writes the URL back. If a rip fails, the app falls back to the YouTu
 
 ## How a tournament runs
 
-1. **Host** creates a room → shares the code.
+1. **Host** creates a room → shares the code or the invite link.
 2. Players **join**; host sets the theme, songs-per-player, timer, and toggles, then opens
    submissions.
 3. Everyone **submits** their picks (video or audio-only).
