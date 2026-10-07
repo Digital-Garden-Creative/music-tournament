@@ -27,11 +27,11 @@ export default function Complete({ room, matches, submissions, owners }: ReadyRo
       </div>
 
       <h3 className="mb-4 text-lg font-semibold">Every pick, revealed</h3>
-      <ul className="grid gap-3 sm:grid-cols-2">
+      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {submissions.map((s) => (
           <li key={s.id} className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
             {s.youtube_id && (
-              <img src={youTubeThumb(s.youtube_id)} alt="" className="h-12 w-20 rounded-md object-cover" />
+              <img src={youTubeThumb(s.youtube_id)} alt="" className="h-12 w-20 shrink-0 rounded-md object-cover" />
             )}
             <div className="min-w-0">
               <p className="truncate font-medium">{s.title}</p>

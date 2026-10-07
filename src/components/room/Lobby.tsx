@@ -42,7 +42,7 @@ export default function Lobby({ session, room, players }: ReadyRoomState) {
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-[1fr_280px]">
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_280px]">
       <section className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6">
         <h2 className="text-lg font-semibold">Tournament settings</h2>
         {isHost ? (

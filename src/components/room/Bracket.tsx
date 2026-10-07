@@ -43,7 +43,7 @@ export default function Bracket(state: ReadyRoomState) {
   const isHost = session.isHost;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_260px]">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
       <div>
         {active ? (
           <MatchPanel match={active} subsById={subsById} state={state} />
@@ -102,7 +102,7 @@ function MatchCard({ match, subsById, owners, canOpen, onOpen }: {
         isWinner ? 'font-semibold text-emerald-300' : 'text-zinc-300'
       }`}>
         <span className="min-w-0 truncate">
-          {s ? s.title : <span className="text-zinc-600">— bye —</span>}
+          {s ? s.title : <span className="text-zinc-600">{match.round === 1 ? '— bye —' : 'TBD'}</span>}
           {s && owners[s.id] && <span className="ml-1.5 text-xs font-normal text-zinc-500">· {owners[s.id]}</span>}
         </span>
         {match.status === 'closed' && votes !== null && (

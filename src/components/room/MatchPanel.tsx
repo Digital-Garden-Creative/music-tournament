@@ -60,7 +60,7 @@ export default function MatchPanel({ match, subsById, state }: {
         )}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <SongChoice
           song={a} side="a" votes={match.votes_a} revealed={revealed}
           winner={match.winner === match.song_a}

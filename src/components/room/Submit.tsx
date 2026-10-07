@@ -42,7 +42,7 @@ export default function Submit({ session, room }: ReadyRoomState) {
   const remaining = cap - picks.length;
 
   return (
-    <div className="grid gap-6 md:grid-cols-[1fr_300px]">
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_300px]">
       <section>
         {room.params.theme && (
           <div className="mb-4 rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-3">
@@ -60,7 +60,7 @@ export default function Submit({ session, room }: ReadyRoomState) {
             <li key={p.id} className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
               {p.youtube_id && (
                 <img src={youTubeThumb(p.youtube_id)} alt=""
-                  className="h-12 w-20 rounded-md object-cover" />
+                  className="h-12 w-20 shrink-0 rounded-md object-cover" />
               )}
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{p.title}</p>
@@ -130,7 +130,7 @@ function HostPanel({ session, cap }: { session: ReadyRoomState['session']; cap: 
   if (!session.isHost) {
     return (
       <aside className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5 text-sm text-zinc-400">
-        Submit up to {cap} songs. The organizer will start the bracket once everyone's ready.
+        Submit up to {cap} {cap === 1 ? 'song' : 'songs'}. The organizer will start the bracket once everyone's ready.
       </aside>
     );
   }
