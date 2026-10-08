@@ -51,6 +51,7 @@ export default function Bracket(state: ReadyRoomState) {
           <ChampionBanner
             title={subsById.get(champion)?.title ?? 'Champion'}
             isHost={isHost}
+            anonymous={state.room.params.anonymous}
             onReveal={() => act(revealRoom(session.hostToken!))}
           />
         ) : (
@@ -105,7 +106,7 @@ function MatchCard({ match, subsById, owners, canOpen, onOpen }: {
           {s ? s.title : <span className="text-zinc-600">{match.round === 1 ? '— bye —' : 'TBD'}</span>}
           {s && owners[s.id] && <span className="ml-1.5 text-xs font-normal text-zinc-500">· {owners[s.id]}</span>}
         </span>
-        {match.status === 'closed' && votes !== null && (
+        {match.status === 'closed' && match.opened_at && votes !== null && (
           <span className="shrink-0 text-xs text-zinc-500">{votes}</span>
         )}
       </div>
@@ -135,8 +136,8 @@ function MatchCard({ match, subsById, owners, canOpen, onOpen }: {
   );
 }
 
-function ChampionBanner({ title, isHost, onReveal }: {
-  title: string; isHost: boolean; onReveal: () => void;
+function ChampionBanner({ title, isHost, anonymous, onReveal }: {
+  title: string; isHost: boolean; anonymous: boolean; onReveal: () => void;
 }) {
   return (
     <div className="mb-6 rounded-2xl border border-amber-500/40 bg-gradient-to-br from-amber-500/15 to-fuchsia-500/10 p-8 text-center">
@@ -146,7 +147,7 @@ function ChampionBanner({ title, isHost, onReveal }: {
       {isHost && (
         <button onClick={onReveal}
           className="mt-5 rounded-xl bg-fuchsia-600 px-5 py-2.5 font-semibold text-white transition hover:bg-fuchsia-500">
-          Reveal who picked what →
+          {anonymous ? 'Reveal who picked what →' : 'Finish tournament →'}
         </button>
       )}
     </div>

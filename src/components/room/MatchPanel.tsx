@@ -7,7 +7,7 @@ import type { ReadyRoomState } from '../../lib/useRoom';
 export default function MatchPanel({ match, subsById, state }: {
   match: Match; subsById: Map<string, PublicSubmission>; state: ReadyRoomState;
 }) {
-  const { session, players, owners } = state;
+  const { session, room, players, owners, myPickIds } = state;
   const a = match.song_a ? subsById.get(match.song_a) : null;
   const b = match.song_b ? subsById.get(match.song_b) : null;
   const isHost = session.isHost;
@@ -21,6 +21,9 @@ export default function MatchPanel({ match, subsById, state }: {
 
   const remaining = useCountdown(match.closes_at, match.status === 'open');
   const haveVoted = match.voted_player_ids.includes(myId);
+  // With self-voting off the server rejects our vote here, so say so up front.
+  const sittingOut = !room.params.allow_self_vote
+    && [match.song_a, match.song_b].some((id) => id !== null && myPickIds.includes(id));
   const voterCount = match.eligible_voters ?? players.filter((p) => p.connected).length;
 
   // When the timer runs out, every client asks the server to close the match, so voting
@@ -66,7 +69,7 @@ export default function MatchPanel({ match, subsById, state }: {
           winner={match.winner === match.song_a}
           owner={a ? owners[a.id] : undefined}
           selected={choice === match.song_a}
-          disabled={match.status !== 'open'}
+          disabled={match.status !== 'open' || sittingOut}
           onVote={() => a && vote(a.id)}
         />
         <SongChoice
@@ -74,7 +77,7 @@ export default function MatchPanel({ match, subsById, state }: {
           winner={match.winner === match.song_b}
           owner={b ? owners[b.id] : undefined}
           selected={choice === match.song_b}
-          disabled={match.status !== 'open'}
+          disabled={match.status !== 'open' || sittingOut}
           onVote={() => b && vote(b.id)}
         />
       </div>
@@ -84,10 +87,13 @@ export default function MatchPanel({ match, subsById, state }: {
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-zinc-400">
         <span>
           {match.status === 'open' && (
-            <>{haveVoted ? '✓ Vote locked in (tap a card to change). ' : 'Cast your vote. '}
+            <>{sittingOut ? 'Your pick is in this match, so you sit this one out. '
+              : haveVoted ? '✓ Vote locked in (tap a card to change). ' : 'Cast your vote. '}
             {match.voted_player_ids.length}/{voterCount} voted</>
           )}
-          {tie && 'Votes were even — the organizer will reopen voting.'}
+          {tie && (match.voted_player_ids.length === 0
+            ? 'No votes came in — the organizer will reopen voting.'
+            : 'Votes were even — the organizer will reopen voting.')}
           {revealed && 'Match complete.'}
         </span>
 
