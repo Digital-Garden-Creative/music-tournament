@@ -27,7 +27,7 @@ export default function BoyBandPoster() {
       </div>
       <div className="bb-poster-paper">
         <span className="bb-pin" aria-hidden="true" />
-        <img src={POSTER_SRC} alt="One Direction poster" className="block aspect-[3/4] w-full object-cover" />
+        <img src={POSTER_SRC} alt="One Direction poster" width={400} height={618} className="block h-auto w-full" />
       </div>
     </div>
   );
