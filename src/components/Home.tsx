@@ -43,7 +43,7 @@ export default function Home() {
   return (
     <div className="relative overflow-x-clip">
     <BoyBandPoster />
-    <div className="relative mx-auto flex max-w-md flex-col items-center px-6 pt-28 pb-16">
+    <div className="relative mx-auto flex max-w-md flex-col items-center px-6 pt-28 pb-16 min-[440px]:pt-[10.5rem] md:pt-28">
       <div className="relative w-fit">
         <h1 className="text-center text-5xl leading-tight font-black tracking-tight text-sky-300 [text-shadow:0_0_12px_rgb(56_189_248/0.7),0_0_32px_rgb(56_189_248/0.45),0_0_64px_rgb(14_165_233/0.3)]">
           Song Tournament

@@ -8,7 +8,9 @@
 
 /* ───────────── Home page: "Boy band edition!" theme ───────────── */
 
-/* Poster pinned to the top-left corner of the page. */
+/* Poster pinned to the top-left corner of the page. It stays small until the screen is wide
+   enough (md) for the one-line title to start clear of it; Home pads the title down below it
+   in between. */
 .bb-poster {
   position: absolute;
   top: 0.9rem;
@@ -17,8 +19,11 @@
   z-index: 0;
   pointer-events: none;
 }
-@media (min-width: 640px) {
-  .bb-poster { top: 1.75rem; left: 1.75rem; width: 8.5rem; }
+@media (max-width: 359px) {
+  .bb-poster { width: 4.5rem; }
+}
+@media (min-width: 768px) {
+  .bb-poster { top: 1.75rem; left: 1.75rem; width: 8rem; }
 }
 .bb-poster-paper {
   position: relative;
@@ -62,19 +67,14 @@
   100% { transform: translate(var(--dx), -9rem) scale(1.15) rotate(var(--rot)); opacity: 0; }
 }
 
-/* Cardboard sign tacked over the title's lower-right corner, Minecraft-splash style. */
+/* Cardboard sign tacked over the title's lower-right corner, Minecraft-splash style (static). */
 .bb-sign {
   position: absolute;
   right: -1.1rem;
   bottom: -1.35rem;
-  transform-origin: 70% 50%;
+  transform: rotate(-12deg);
   filter: drop-shadow(0 6px 8px rgb(0 0 0 / 0.55));
-  animation: bb-sign-pulse 1.4s ease-in-out infinite;
   z-index: 1;
-}
-@keyframes bb-sign-pulse {
-  0%, 100% { transform: rotate(-12deg) scale(1); }
-  50% { transform: rotate(-12deg) scale(1.07); }
 }
 .bb-sign-board {
   display: block;
@@ -115,6 +115,5 @@
 .bb-sign::after { right: -6px; transform: rotate(28deg); }
 
 @media (prefers-reduced-motion: reduce) {
-  .bb-sign { animation: none; transform: rotate(-12deg); }
   .bb-heart { animation: none; opacity: 0.85; transform: translate(var(--dx), -2.5rem) rotate(var(--rot)); }
 }
