@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createRoom, joinRoom } from '../lib/api';
-import { saveSession } from '../lib/session';
+import { latestSession, saveSession } from '../lib/session';
+import type { Session } from '../lib/types';
 
 type Mode = 'menu' | 'create' | 'join';
 
@@ -10,6 +11,9 @@ export default function Home() {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Read after mount: Home is server-rendered, and storage only exists in the browser.
+  const [rejoin, setRejoin] = useState<Session | null>(null);
+  useEffect(() => { setRejoin(latestSession()); }, []);
 
   async function handleCreate(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -44,6 +48,13 @@ export default function Home() {
       <div className="mt-10 w-full rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-xl shadow-black/40">
         {mode === 'menu' && (
           <div className="flex flex-col gap-3">
+            {rejoin && (
+              <a href={`/room?code=${rejoin.code}`}
+                className="flex items-center justify-between rounded-xl border border-sky-500/40 bg-sky-500/10 px-4 py-3 font-semibold text-sky-200 transition hover:bg-sky-500/20">
+                <span>Rejoin room <span className="font-mono tracking-widest">{rejoin.code}</span></span>
+                <span aria-hidden="true">→</span>
+              </a>
+            )}
             <button
               onClick={() => { setMode('create'); setError(null); }}
               className="rounded-xl bg-fuchsia-600 px-4 py-3 font-semibold text-white transition hover:bg-fuchsia-500"

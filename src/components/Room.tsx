@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRoom } from '../lib/useRoom';
 import type { ReadyRoomState } from '../lib/useRoom';
 import Lobby from './room/Lobby';
@@ -17,6 +17,7 @@ export default function Room() {
 
 function RoomForCode({ code }: { code: string }) {
   const { phase, error, join, state } = useRoom(code);
+  useEffect(() => { document.title = `Room ${code} · Song Tournament`; }, [code]);
 
   if (phase === 'loading') {
     return <Centered><p className="text-zinc-400">Loading room…</p></Centered>;

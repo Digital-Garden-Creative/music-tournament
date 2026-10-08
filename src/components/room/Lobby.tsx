@@ -68,6 +68,11 @@ export default function Lobby({ session, room, players }: ReadyRoomState) {
             <Toggle label="Players can vote on their own picks"
               checked={params.allow_self_vote}
               onChange={(v) => save('allow_self_vote', v)} />
+            {!params.allow_self_vote && players.length < 3 && (
+              <p className="-mt-2 text-xs text-amber-400/80">
+                With fewer than 3 players, some matches will have nobody allowed to vote.
+              </p>
+            )}
             <Toggle label="Anonymous picks (hide who submitted what)"
               checked={params.anonymous}
               onChange={(v) => save('anonymous', v)} />

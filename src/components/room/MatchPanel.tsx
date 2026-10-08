@@ -50,7 +50,7 @@ export default function MatchPanel({ match, subsById, state }: {
 
   return (
     <section className="mb-6 rounded-2xl border border-fuchsia-500/40 bg-zinc-900/60 p-5 shadow-lg shadow-fuchsia-950/20">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="sticky top-0 z-10 -mx-5 -mt-5 mb-4 flex items-center justify-between rounded-t-2xl bg-zinc-900/95 px-5 pt-5 pb-3 backdrop-blur">
         <h2 className="text-lg font-semibold">
           {tie ? '🤝 Tie — discuss!' : revealed ? 'Result' : 'Now voting'}
         </h2>
@@ -132,7 +132,7 @@ function SongChoice({ song, side, votes, revealed, winner, owner, selected, disa
     } bg-zinc-950/60`}>
       <SongPlayer song={song} />
       <div className="p-3">
-        <p className="truncate font-medium">{song.title}</p>
+        <p className="line-clamp-2 font-medium" title={song.title}>{song.title}</p>
         {owner && <p className="truncate text-xs text-zinc-500">picked by {owner}</p>}
         <div className="mt-2 flex items-center justify-between">
           {revealed ? (
