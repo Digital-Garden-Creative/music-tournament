@@ -37,15 +37,9 @@ export default function Home() {
 
   return (
     <div className="mx-auto flex max-w-md flex-col items-center px-6 pt-20 pb-16 sm:pt-28">
-      <div className="mb-2 flex items-center gap-2 text-fuchsia-400">
-        <span className="text-3xl">🎵</span>
-      </div>
-      <h1 className="bg-gradient-to-r from-fuchsia-400 via-violet-400 to-sky-400 bg-clip-text text-center text-5xl font-black tracking-tight text-transparent">
+      <h1 className="text-center text-5xl leading-tight font-black tracking-tight text-sky-300 [text-shadow:0_0_12px_rgb(56_189_248/0.7),0_0_32px_rgb(56_189_248/0.45),0_0_64px_rgb(14_165_233/0.3)]">
         Song Tournament
       </h1>
-      <p className="mt-3 text-center text-zinc-400">
-        Pick your songs. Seed the bracket. Crown a champion.
-      </p>
 
       <div className="mt-10 w-full rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-xl shadow-black/40">
         {mode === 'menu' && (
