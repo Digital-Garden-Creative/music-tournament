@@ -8,24 +8,15 @@
 
 /* ───────────── Home page: "Boy band edition!" theme ───────────── */
 
-/* Poster pinned up next to the title (it lives inside the title wrapper). On phones it sits
-   in the flow above the title's left edge, with the title overlapping its bottom; from md
-   up there's room beside the one-line title, so it hangs to the left of it, reaching above
-   and tucked just behind the first letter. */
+/* Poster pinned up below the room options, centered. Its hearts float up behind the card. */
 .bb-poster {
   position: relative;
-  width: 7rem;
-  margin: 0 auto -1.5rem 0;
+  width: 8rem;
+  margin: 3rem auto 0;
   pointer-events: none;
 }
 @media (min-width: 768px) {
-  .bb-poster {
-    position: absolute;
-    width: 9rem;
-    right: calc(100% - 0.75rem);
-    top: -6.5rem;
-    margin: 0;
-  }
+  .bb-poster { width: 9.5rem; }
 }
 .bb-poster-paper {
   position: relative;
