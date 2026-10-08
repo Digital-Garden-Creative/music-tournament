@@ -1,17 +1,10 @@
 import { useMemo, useState } from 'react';
 import { openMatch, revealRoom } from '../../lib/api';
-import type { Match, PublicSubmission } from '../../lib/types';
+import type { PublicSubmission } from '../../lib/types';
 import type { ReadyRoomState } from '../../lib/useRoom';
+import BracketView from './BracketView';
 import MatchPanel from './MatchPanel';
 import { PlayerList } from './Lobby';
-
-const ROUND_NAME = (round: number, totalRounds: number) => {
-  const fromEnd = totalRounds - round;
-  if (fromEnd === 0) return 'Final';
-  if (fromEnd === 1) return 'Semifinals';
-  if (fromEnd === 2) return 'Quarterfinals';
-  return `Round ${round}`;
-};
 
 export default function Bracket(state: ReadyRoomState) {
   const { session, matches, submissions, players, owners } = state;
@@ -25,14 +18,6 @@ export default function Bracket(state: ReadyRoomState) {
   }, [submissions]);
 
   const totalRounds = matches.reduce((max, m) => Math.max(max, m.round), 0);
-  const rounds = useMemo(() => {
-    const byRound = new Map<number, Match[]>();
-    matches.forEach((m) => {
-      if (!byRound.has(m.round)) byRound.set(m.round, []);
-      byRound.get(m.round)!.push(m);
-    });
-    return [...byRound.entries()].sort((a, b) => a[0] - b[0]);
-  }, [matches]);
 
   const active = matches.find((m) => m.status === 'open' || m.status === 'discussion') ?? null;
   const champion = matches.find((m) => m.round === totalRounds)?.winner ?? null;
@@ -41,6 +26,11 @@ export default function Bracket(state: ReadyRoomState) {
     .filter((m) => m.status === 'closed' && m.opened_at)
     .sort((x, y) => y.opened_at!.localeCompare(x.opened_at!))[0] ?? null;
   const isHost = session.isHost;
+  // The earliest match with both songs in, so the host can move on without hunting for it.
+  const nextUp = matches
+    .filter((m) => m.status === 'pending' && m.song_a && m.song_b)
+    .sort((x, y) => x.round - y.round || x.slot - y.slot)[0] ?? null;
+  const title = (id: string | null) => (id && subsById.get(id)?.title) || '?';
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
@@ -58,80 +48,35 @@ export default function Bracket(state: ReadyRoomState) {
           <>
             {lastPlayed && <MatchPanel match={lastPlayed} subsById={subsById} state={state} />}
             <div className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6 text-zinc-400">
-              {isHost ? 'Pick a match below and open it to start voting.' : 'Waiting for the organizer to open the next match…'}
+              {isHost && nextUp ? (
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="min-w-0">
+                    <span className="block text-xs uppercase tracking-wide text-zinc-500">Up next</span>
+                    <span className="text-zinc-200">{title(nextUp.song_a)}</span>
+                    <span className="mx-2 text-zinc-600">vs</span>
+                    <span className="text-zinc-200">{title(nextUp.song_b)}</span>
+                  </p>
+                  <button onClick={() => act(openMatch(session.hostToken!, nextUp.id))}
+                    className="min-h-[40px] shrink-0 rounded-xl bg-fuchsia-600 px-4 py-2 font-semibold text-white transition hover:bg-fuchsia-500">
+                    Open next match →
+                  </button>
+                </div>
+              ) : isHost ? 'Pick a match below and open it to start voting.'
+                : 'Waiting for the organizer to open the next match…'}
             </div>
           </>
         )}
 
         {error && <p className="mb-4 text-sm text-rose-400">{error}</p>}
 
-        <div className="flex gap-6 overflow-x-auto pb-4">
-          {rounds.map(([round, ms]) => (
-            <div key={round} className="min-w-[220px] flex-1">
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                {ROUND_NAME(round, totalRounds)}
-              </h3>
-              <div className="flex flex-col gap-3">
-                {ms.sort((a, b) => a.slot - b.slot).map((m) => (
-                  <MatchCard
-                    key={m.id} match={m} subsById={subsById} owners={owners}
-                    canOpen={isHost && !active && m.status === 'pending' && !!m.song_a && !!m.song_b}
-                    onOpen={() => act(openMatch(session.hostToken!, m.id))}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+        <BracketView
+          matches={matches} subsById={subsById} owners={owners}
+          canOpen={(m) => isHost && !active && m.status === 'pending' && !!m.song_a && !!m.song_b}
+          onOpen={(m) => act(openMatch(session.hostToken!, m.id))}
+        />
       </div>
 
       <PlayerList players={players} />
-    </div>
-  );
-}
-
-function MatchCard({ match, subsById, owners, canOpen, onOpen }: {
-  match: Match; subsById: Map<string, PublicSubmission>; owners: Record<string, string>;
-  canOpen: boolean; onOpen: () => void;
-}) {
-  const a = match.song_a ? subsById.get(match.song_a) : null;
-  const b = match.song_b ? subsById.get(match.song_b) : null;
-  const row = (s: PublicSubmission | null | undefined, id: string | null, votes: number | null) => {
-    const isWinner = match.winner && match.winner === id;
-    return (
-      <div className={`flex items-center justify-between gap-2 px-3 py-2 text-sm ${
-        isWinner ? 'font-semibold text-emerald-300' : 'text-zinc-300'
-      }`}>
-        <span className="min-w-0 truncate">
-          {s ? s.title : <span className="text-zinc-600">{match.round === 1 ? '— bye —' : 'TBD'}</span>}
-          {s && owners[s.id] && <span className="ml-1.5 text-xs font-normal text-zinc-500">· {owners[s.id]}</span>}
-        </span>
-        {match.status === 'closed' && match.opened_at && votes !== null && (
-          <span className="shrink-0 text-xs text-zinc-500">{votes}</span>
-        )}
-      </div>
-    );
-  };
-  return (
-    <div className={`overflow-hidden rounded-xl border ${
-      match.status === 'open' ? 'border-fuchsia-500/60 ring-1 ring-fuchsia-500/30'
-        : match.status === 'discussion' ? 'border-amber-500/50'
-        : 'border-zinc-800'
-    } bg-zinc-900/40`}>
-      {row(a, match.song_a, match.votes_a)}
-      <div className="h-px bg-zinc-800" />
-      {row(b, match.song_b, match.votes_b)}
-      {canOpen && (
-        <button onClick={onOpen}
-          className="min-h-[36px] w-full bg-fuchsia-600/90 py-1.5 text-xs font-semibold text-white transition hover:bg-fuchsia-500">
-          Open voting
-        </button>
-      )}
-      {match.status === 'discussion' && (
-        <div className="bg-amber-500/15 py-1.5 text-center text-xs font-semibold text-amber-300">
-          Tie — discussing
-        </div>
-      )}
     </div>
   );
 }
