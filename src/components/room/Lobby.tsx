@@ -158,7 +158,8 @@ function Toggle({ label, checked, onChange }: {
     <label className="flex cursor-pointer items-center justify-between gap-3 text-sm text-zinc-300">
       <span>{label}</span>
       <button
-        type="button" onClick={() => onChange(!checked)}
+        type="button" role="switch" aria-checked={checked} aria-label={label}
+        onClick={() => onChange(!checked)}
         className={`relative h-6 w-11 shrink-0 rounded-full transition ${checked ? 'bg-fuchsia-600' : 'bg-zinc-700'}`}
       >
         <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition ${checked ? 'left-[22px]' : 'left-0.5'}`} />

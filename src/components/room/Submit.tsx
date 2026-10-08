@@ -20,6 +20,16 @@ export default function Submit({ session, room }: ReadyRoomState) {
   }
   useEffect(() => { load(); }, []);
 
+  // Rip status changes on the server, so poll while any of our audio picks is still ripping.
+  const ripping = picks.some(
+    (p) => p.media_type === 'audio' && (p.rip_status === 'pending' || p.rip_status === 'processing'),
+  );
+  useEffect(() => {
+    if (!ripping) return;
+    const id = setInterval(load, 4000);
+    return () => clearInterval(id);
+  }, [ripping]);
+
   async function add(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);

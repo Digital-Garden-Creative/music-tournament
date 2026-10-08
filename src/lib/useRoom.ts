@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
 import {
-  getMatches, getPlayers, getRoom, getSubmissions, heartbeat, joinRoom, ownership,
+  getMatches, getPlayers, getRoom, getSubmissions, heartbeat, joinRoom, myPicks, ownership,
   resumeSession,
 } from './api';
 import { clearSession, loadSession, saveSession } from './session';
@@ -15,6 +15,8 @@ export interface RoomState {
   matches: Match[];
   /** submission id → submitter name; filled once the room is revealed, or always when not anonymous. */
   owners: Record<string, string>;
+  /** Ids of this player's own picks (known to them even in anonymous rooms). */
+  myPickIds: string[];
   refresh: () => Promise<void>;
 }
 
@@ -35,6 +37,7 @@ export function useRoom(code: string) {
   const [submissions, setSubmissions] = useState<PublicSubmission[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [owners, setOwners] = useState<Record<string, string>>({});
+  const [myPickIds, setMyPickIds] = useState<string[]>([]);
   const roomIdRef = useRef<string | null>(null);
 
   const reloadRoom = useCallback(async (roomId: string) => {
@@ -129,6 +132,12 @@ export function useRoom(code: string) {
       .catch(() => {});
   }, [room?.id, ownersVisible, submissionIds]);
 
+  // Our own picks, so a match can tell us when we're sitting it out (self-voting off).
+  useEffect(() => {
+    if (!session || room?.status !== 'in_progress') return;
+    myPicks(session.sessionToken).then((ps) => setMyPickIds(ps.map((p) => p.id))).catch(() => {});
+  }, [session, room?.status]);
+
   // Heartbeat keeps us counted as online for the early-finish vote check. When a phone
   // wakes up, beat immediately and refetch anything realtime missed while asleep.
   useEffect(() => {
@@ -151,6 +160,6 @@ export function useRoom(code: string) {
     };
   }, [session, refresh]);
 
-  const state: RoomState = { session, room, players, submissions, matches, owners, refresh };
+  const state: RoomState = { session, room, players, submissions, matches, owners, myPickIds, refresh };
   return { phase, error, join, state };
 }
