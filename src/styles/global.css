@@ -8,22 +8,24 @@
 
 /* ───────────── Home page: "Boy band edition!" theme ───────────── */
 
-/* Poster pinned to the top-left corner of the page. It stays small until the screen is wide
-   enough (md) for the one-line title to start clear of it; Home pads the title down below it
-   in between. */
+/* Poster pinned up next to the title (it lives inside the title wrapper). On phones it sits
+   in the flow above the title's left edge, with the title overlapping its bottom; from md
+   up there's room beside the one-line title, so it hangs to the left of it, reaching above
+   and tucked just behind the first letter. */
 .bb-poster {
-  position: absolute;
-  top: 0.9rem;
-  left: 0.9rem;
-  width: 5.5rem;
-  z-index: 0;
+  position: relative;
+  width: 7rem;
+  margin: 0 auto -1.5rem 0;
   pointer-events: none;
 }
-@media (max-width: 359px) {
-  .bb-poster { width: 4.5rem; }
-}
 @media (min-width: 768px) {
-  .bb-poster { top: 1.75rem; left: 1.75rem; width: 8rem; }
+  .bb-poster {
+    position: absolute;
+    width: 9rem;
+    right: calc(100% - 0.75rem);
+    top: -6.5rem;
+    margin: 0;
+  }
 }
 .bb-poster-paper {
   position: relative;
