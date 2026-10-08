@@ -15,6 +15,7 @@ const { title = 'Song Tournament' } = Astro.props;
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
+    <slot name="head" />
   </head>
   <body class="min-h-full bg-zinc-950 text-zinc-100 antialiased selection:bg-fuchsia-500/30">
     <div class="flex min-h-screen flex-col">

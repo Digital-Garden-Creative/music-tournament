@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createRoom, joinRoom } from '../lib/api';
+import BoyBandPoster from './BoyBandPoster';
 import { latestSession, saveSession } from '../lib/session';
 import type { Session } from '../lib/types';
 
@@ -40,12 +41,16 @@ export default function Home() {
   }
 
   return (
-    <div className="mx-auto flex max-w-md flex-col items-center px-6 pt-20 pb-16 sm:pt-28">
-      <h1 className="text-center text-5xl leading-tight font-black tracking-tight text-sky-300 [text-shadow:0_0_12px_rgb(56_189_248/0.7),0_0_32px_rgb(56_189_248/0.45),0_0_64px_rgb(14_165_233/0.3)]">
-        Song Tournament
-      </h1>
+    <div className="relative overflow-x-clip">
+    <div className="relative mx-auto flex max-w-md flex-col items-center px-6 pt-20 pb-16 sm:pt-28">
+      <div className="relative w-fit">
+        <h1 className="relative text-center text-5xl leading-tight font-black tracking-tight text-sky-300 [text-shadow:0_0_12px_rgb(56_189_248/0.7),0_0_32px_rgb(56_189_248/0.45),0_0_64px_rgb(14_165_233/0.3)]">
+          Song Tournament
+        </h1>
+        <p className="bb-sign"><span className="bb-sign-board">Boy band edition!</span></p>
+      </div>
 
-      <div className="mt-10 w-full rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-xl shadow-black/40">
+      <div className="relative z-10 mt-14 w-full rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-xl shadow-black/40">
         {mode === 'menu' && (
           <div className="flex flex-col gap-3">
             {rejoin && (
@@ -109,6 +114,9 @@ export default function Home() {
 
         {error && <p className="mt-4 text-sm text-rose-400">{error}</p>}
       </div>
+
+      <BoyBandPoster />
+    </div>
     </div>
   );
 }
