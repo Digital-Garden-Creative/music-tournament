@@ -3,6 +3,7 @@ import { clearSession } from '../../lib/session';
 import { youTubeThumb } from '../../lib/youtube';
 import type { PublicSubmission } from '../../lib/types';
 import type { ReadyRoomState } from '../../lib/useRoom';
+import BracketView from './BracketView';
 
 export default function Complete({ room, matches, submissions, owners }: ReadyRoomState) {
   const subsById = useMemo(() => {
@@ -34,12 +35,15 @@ export default function Complete({ room, matches, submissions, owners }: ReadyRo
               <img src={youTubeThumb(s.youtube_id)} alt="" className="h-12 w-20 shrink-0 rounded-md object-cover" />
             )}
             <div className="min-w-0">
-              <p className="truncate font-medium">{s.title}</p>
+              <p className="truncate font-medium" title={s.title}>{s.title}</p>
               <p className="text-xs text-zinc-500">{owners[s.id] ?? '—'}</p>
             </div>
           </li>
         ))}
       </ul>
+
+      <h3 className="mt-10 mb-4 text-lg font-semibold">How it played out</h3>
+      <BracketView matches={matches} subsById={subsById} owners={owners} />
 
       <div className="mt-8 text-center">
         <a href="/" onClick={() => clearSession(room.code)}
