@@ -237,10 +237,10 @@ function HostPanel({ session, cap, selfVoteOff, playerCount, large = false }: {
       {!everyoneReady && counts.length > 0 && (
         <p className="mt-2 text-xs text-amber-400/80">Not everyone has submitted yet — you can still seed.</p>
       )}
-      {selfVoteOff && playerCount < 3 && (
+      {selfVoteOff && playerCount <= 3 && (
         <p className="mt-2 text-xs text-amber-400/80">
-          Self-voting is off and there are fewer than 3 players, so some matches will have nobody
-          allowed to vote. Go back to settings to turn it on.
+          Self-voting is off with 3 or fewer players, so a match can end up with nobody allowed
+          to vote. Go back to settings to turn it on.
         </p>
       )}
       {error && <p className="mt-2 text-sm text-rose-400">{error}</p>}

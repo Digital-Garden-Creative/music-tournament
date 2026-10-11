@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { castVote, closeExpiredMatch, closeMatch, startRevote, startVoting } from '../../lib/api';
-import { youTubeEmbed, youTubeThumb } from '../../lib/youtube';
+import { youTubeThumb } from '../../lib/youtube';
 import type { Match, PublicSubmission } from '../../lib/types';
 import type { ReadyRoomState } from '../../lib/useRoom';
 import YouTubeAudio from './YouTubeAudio';
+import YouTubeVideo from './YouTubeVideo';
 
 type Slot = { key: 'A' | 'B' | 'C'; id: string | null; votes: number | null };
 
@@ -193,15 +194,7 @@ function SongPlayer({ song }: { song: PublicSubmission }) {
     return <div className="flex h-32 items-center justify-center text-zinc-600">No preview</div>;
   }
   if (song.media_type === 'audio') return <YouTubeAudio youtubeId={song.youtube_id} title={song.title} />;
-  return (
-    <div className="aspect-video w-full">
-      <iframe
-        className="h-full w-full" src={youTubeEmbed(song.youtube_id)}
-        title={song.title} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
-      />
-    </div>
-  );
+  return <YouTubeVideo youtubeId={song.youtube_id} title={song.title} />;
 }
 
 // Phones in a live game: just the artwork, no playback.
