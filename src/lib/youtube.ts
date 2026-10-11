@@ -21,10 +21,6 @@ export function youTubeThumb(id: string): string {
   return `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
 }
 
-export function youTubeEmbed(id: string): string {
-  return `https://www.youtube.com/embed/${id}`;
-}
-
 /**
  * A YouTube upload title tidied into a song label: drops bracketed extras like
  * "(Official Video Remastered 4K)" or "[Lyrics]" and uses an en dash between artist and song.

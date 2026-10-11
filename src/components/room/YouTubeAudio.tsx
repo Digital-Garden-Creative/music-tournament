@@ -1,35 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { youTubeThumb } from '../../lib/youtube';
+import { loadYouTubeApi, pauseOthers, registerPlayer } from '../../lib/youtubePlayer';
+import type { YTPlayer } from '../../lib/youtubePlayer';
 
 // Plays a YouTube video's sound with the picture hidden ("Audio only" picks), so nothing
 // has to be ripped. The real player sits underneath a blurred-thumbnail cover that lets taps
 // fall through to it: phones (iOS especially) only start sound from a tap on the player
 // itself. Our own play/pause button and seek bar below drive it through the IFrame API.
-
-type YTPlayer = {
-  playVideo(): void; pauseVideo(): void; seekTo(s: number, allowAhead: boolean): void;
-  getCurrentTime(): number; getDuration(): number; destroy(): void;
-};
-type YTNamespace = {
-  Player: new (el: HTMLElement, opts: Record<string, unknown>) => YTPlayer;
-  PlayerState: { ENDED: number; PLAYING: number; PAUSED: number; BUFFERING: number };
-};
-declare global {
-  interface Window { YT?: YTNamespace; onYouTubeIframeAPIReady?: () => void }
-}
-
-let apiPromise: Promise<YTNamespace> | null = null;
-function loadYouTubeApi(): Promise<YTNamespace> {
-  if (window.YT?.Player) return Promise.resolve(window.YT);
-  apiPromise ??= new Promise((resolve) => {
-    const previous = window.onYouTubeIframeAPIReady;
-    window.onYouTubeIframeAPIReady = () => { previous?.(); resolve(window.YT!); };
-    const tag = document.createElement('script');
-    tag.src = 'https://www.youtube.com/iframe_api';
-    document.head.appendChild(tag);
-  });
-  return apiPromise;
-}
+// Starting it pauses any other song on the page.
 
 type PlayState = 'loading' | 'ready' | 'playing' | 'paused' | 'ended' | 'error';
 
@@ -43,13 +21,14 @@ export default function YouTubeAudio({ youtubeId, title }: { youtubeId: string; 
 
   useEffect(() => {
     let cancelled = false;
+    let unregister = () => {};
     setState('loading');
     loadYouTubeApi().then((YT) => {
       if (cancelled || !wrap.current) return;
       // YT.Player replaces the element it's given, so hand it a child React doesn't own.
       const el = document.createElement('div');
       wrap.current.appendChild(el);
-      player.current = new YT.Player(el, {
+      const p = new YT.Player(el, {
         videoId: youtubeId,
         width: '100%',
         height: '100%',
@@ -60,6 +39,7 @@ export default function YouTubeAudio({ youtubeId, title }: { youtubeId: string; 
             setTime({ cur: 0, dur: player.current?.getDuration() ?? 0 });
           },
           onStateChange: (e: { data: number }) => {
+            if (e.data === YT.PlayerState.PLAYING) pauseOthers(p);
             if (e.data === YT.PlayerState.PLAYING || e.data === YT.PlayerState.BUFFERING) setState('playing');
             else if (e.data === YT.PlayerState.PAUSED) setState('paused');
             else if (e.data === YT.PlayerState.ENDED) setState('ended');
@@ -67,9 +47,12 @@ export default function YouTubeAudio({ youtubeId, title }: { youtubeId: string; 
           onError: () => setState('error'),
         },
       });
+      player.current = p;
+      unregister = registerPlayer(p);
     });
     return () => {
       cancelled = true;
+      unregister();
       player.current?.destroy();
       player.current = null;
       if (wrap.current) wrap.current.innerHTML = '';
