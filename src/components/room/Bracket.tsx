@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { openMatch, revealRoom } from '../../lib/api';
-import type { PublicSubmission } from '../../lib/types';
+import type { Match, PublicSubmission } from '../../lib/types';
 import type { ReadyRoomState } from '../../lib/useRoom';
 import BracketView from './BracketView';
 import MatchPanel from './MatchPanel';
@@ -19,16 +19,16 @@ export default function Bracket(state: ReadyRoomState) {
 
   const totalRounds = matches.reduce((max, m) => Math.max(max, m.round), 0);
 
-  const active = matches.find((m) => m.status === 'open' || m.status === 'discussion') ?? null;
+  const active = matches.find((m) => m.status === 'listening' || m.status === 'open' || m.status === 'discussion') ?? null;
   const champion = matches.find((m) => m.round === totalRounds)?.winner ?? null;
   // Between matches, keep the last result on screen (byes were never opened, so skip them).
   const lastPlayed = matches
     .filter((m) => m.status === 'closed' && m.opened_at)
     .sort((x, y) => y.opened_at!.localeCompare(x.opened_at!))[0] ?? null;
   const isHost = session.isHost;
-  // The earliest match with both songs in, so the host can move on without hunting for it.
+  // The earliest match with every song in, so the host can move on without hunting for it.
   const nextUp = matches
-    .filter((m) => m.status === 'pending' && m.song_a && m.song_b)
+    .filter((m) => m.status === 'pending' && ready(m))
     .sort((x, y) => x.round - y.round || x.slot - y.slot)[0] ?? null;
   const title = (id: string | null) => (id && subsById.get(id)?.title) || '?';
 
@@ -52,9 +52,12 @@ export default function Bracket(state: ReadyRoomState) {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <p className="min-w-0">
                     <span className="block text-xs uppercase tracking-wide text-zinc-500">Up next</span>
-                    <span className="text-zinc-200">{title(nextUp.song_a)}</span>
-                    <span className="mx-2 text-zinc-600">vs</span>
-                    <span className="text-zinc-200">{title(nextUp.song_b)}</span>
+                    {[nextUp.song_a, nextUp.song_b, nextUp.song_c].filter(Boolean).map((id, i) => (
+                      <span key={id}>
+                        {i > 0 && <span className="mx-2 text-zinc-600">vs</span>}
+                        <span className="text-zinc-200">{title(id)}</span>
+                      </span>
+                    ))}
                   </p>
                   <button onClick={() => act(openMatch(session.hostToken!, nextUp.id))}
                     className="min-h-[40px] shrink-0 rounded-xl bg-fuchsia-600 px-4 py-2 font-semibold text-white transition hover:bg-fuchsia-500">
@@ -71,7 +74,7 @@ export default function Bracket(state: ReadyRoomState) {
 
         <BracketView
           matches={matches} subsById={subsById} owners={owners}
-          canOpen={(m) => isHost && !active && m.status === 'pending' && !!m.song_a && !!m.song_b}
+          canOpen={(m) => isHost && !active && m.status === 'pending' && ready(m)}
           onOpen={(m) => act(openMatch(session.hostToken!, m.id))}
         />
       </div>
@@ -79,6 +82,11 @@ export default function Bracket(state: ReadyRoomState) {
       <PlayerList players={players} />
     </div>
   );
+}
+
+// Every slot filled: two songs, or three for a three-way.
+function ready(m: Match): boolean {
+  return !!m.song_a && !!m.song_b && (m.size !== 3 || !!m.song_c);
 }
 
 function ChampionBanner({ title, isHost, anonymous, onReveal }: {
