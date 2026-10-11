@@ -27,7 +27,12 @@ export default function RoomHeader({ room, session, players }: {
         {room.status !== 'complete' && <InviteButton code={room.code} />}
       </div>
       <div className="flex items-center gap-3 text-sm text-zinc-400">
-        {session.isHost && (
+        {session.isHost && room.live && (
+          <span className="rounded-full bg-sky-500/15 px-2.5 py-1 text-xs font-semibold text-sky-300">
+            📺 TV · Presenter
+          </span>
+        )}
+        {session.isHost && !room.live && (
           <span className="rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-amber-400">
             ★ Organizer
           </span>

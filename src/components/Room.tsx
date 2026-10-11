@@ -30,7 +30,7 @@ function RoomForCode({ code }: { code: string }) {
   const ready = state as ReadyRoomState;
   const { room } = ready;
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
+    <div className={`mx-auto px-4 py-6 sm:px-6 ${ready.isPresenter ? 'max-w-7xl' : 'max-w-5xl'}`}>
       <RoomHeader room={room} session={ready.session} players={ready.players} />
       {room.status === 'lobby' && <Lobby {...ready} />}
       {room.status === 'submitting' && <Submit {...ready} />}

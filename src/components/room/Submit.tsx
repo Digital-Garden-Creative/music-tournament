@@ -7,7 +7,23 @@ import type { YouTubeCheck } from '../../lib/youtube';
 import type { MyPick } from '../../lib/types';
 import type { ReadyRoomState } from '../../lib/useRoom';
 
-export default function Submit({ session, room, players }: ReadyRoomState) {
+export default function Submit(state: ReadyRoomState) {
+  const { session, room, players } = state;
+  const cap = room.params.songs_per_player;
+  // The TV doesn't pick songs; it just shows everyone's progress.
+  if (state.isPresenter) {
+    return (
+      <div className="mx-auto max-w-2xl">
+        <Theme theme={room.params.theme} />
+        <HostPanel session={session} cap={cap} large
+          selfVoteOff={!room.params.allow_self_vote} playerCount={players.length} />
+      </div>
+    );
+  }
+  return <PickForm {...state} />;
+}
+
+function PickForm({ session, room, players }: ReadyRoomState) {
   const cap = room.params.songs_per_player;
   const [picks, setPicks] = useState<MyPick[]>([]);
   const [title, setTitle] = useState('');
@@ -43,16 +59,6 @@ export default function Submit({ session, room, players }: ReadyRoomState) {
   }
   useEffect(() => { load(); }, []);
 
-  // Rip status changes on the server, so poll while any of our audio picks is still ripping.
-  const ripping = picks.some(
-    (p) => p.media_type === 'audio' && (p.rip_status === 'pending' || p.rip_status === 'processing'),
-  );
-  useEffect(() => {
-    if (!ripping) return;
-    const id = setInterval(load, 4000);
-    return () => clearInterval(id);
-  }, [ripping]);
-
   async function add(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
@@ -61,8 +67,8 @@ export default function Submit({ session, room, players }: ReadyRoomState) {
       setError("That video can't be found. It may be private or deleted.");
       return;
     }
-    if (status && !status.ok && status.reason === 'blocked' && media === 'video') {
-      setError("That video can't play here. Switch to 🎧 Audio only, or find another upload.");
+    if (status && !status.ok && status.reason === 'blocked') {
+      setError("That video can't play here. Try another upload of the song.");
       return;
     }
     setBusy(true);
@@ -84,12 +90,7 @@ export default function Submit({ session, room, players }: ReadyRoomState) {
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_300px]">
       <section>
-        {room.params.theme && (
-          <div className="mb-4 rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-3">
-            <span className="text-xs uppercase tracking-wide text-violet-300">Theme</span>
-            <p className="font-medium text-violet-100">{room.params.theme}</p>
-          </div>
-        )}
+        <Theme theme={room.params.theme} />
 
         <h2 className="text-lg font-semibold">
           Your picks <span className="text-zinc-500">({picks.length}/{cap})</span>
@@ -106,7 +107,6 @@ export default function Submit({ session, room, players }: ReadyRoomState) {
                 <p className="truncate font-medium">{p.title}</p>
                 <p className="text-xs text-zinc-500">
                   {p.media_type === 'audio' ? '🎧 Audio only' : '📺 Video'}
-                  {p.media_type === 'audio' && ` · rip ${p.rip_status}`}
                 </p>
               </div>
               <button onClick={() => remove(p.id)}
@@ -126,6 +126,10 @@ export default function Submit({ session, room, players }: ReadyRoomState) {
               className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:border-fuchsia-500"
             />
             {ytId && <LinkStatus id={ytId} status={status} checked={check?.id === ytId} />}
+            <p className="rounded-lg bg-zinc-800/50 px-3 py-2 text-xs text-zinc-400">
+              💡 Music videos often add intros, skits or sound effects. Unless the video itself
+              matters, a lyric video usually makes the better pick.
+            </p>
             <input
               value={title} onChange={(e) => setTitle(e.target.value)} maxLength={80}
               aria-label="Song label"
@@ -137,7 +141,9 @@ export default function Submit({ session, room, players }: ReadyRoomState) {
               <MediaPill active={media === 'audio'} onClick={() => setMedia('audio')}>🎧 Audio only</MediaPill>
             </div>
             <p className="text-xs text-zinc-500">
-              Audio-only picks get ripped to an MP3 in the background by the host's rip worker.
+              {media === 'audio'
+                ? 'Audio only plays the song with the video hidden.'
+                : 'Video shows the YouTube video while the song plays.'}
             </p>
             <button type="submit" disabled={busy}
               className="w-full rounded-xl bg-fuchsia-600 px-4 py-2.5 font-semibold text-white transition hover:bg-fuchsia-500 disabled:opacity-50">
@@ -159,8 +165,19 @@ export default function Submit({ session, room, players }: ReadyRoomState) {
   );
 }
 
-function HostPanel({ session, cap, selfVoteOff, playerCount }: {
+function Theme({ theme }: { theme: string }) {
+  if (!theme) return null;
+  return (
+    <div className="mb-4 rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-3">
+      <span className="text-xs uppercase tracking-wide text-violet-300">Theme</span>
+      <p className="font-medium text-violet-100">{theme}</p>
+    </div>
+  );
+}
+
+function HostPanel({ session, cap, selfVoteOff, playerCount, large = false }: {
   session: ReadyRoomState['session']; cap: number; selfVoteOff: boolean; playerCount: number;
+  large?: boolean;
 }) {
   const [counts, setCounts] = useState<{ player_id: string; display_name: string; submitted: number }[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -198,12 +215,13 @@ function HostPanel({ session, cap, selfVoteOff, playerCount }: {
 
   return (
     <aside className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5">
-      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-400">
+      <h3 className={`mb-3 font-semibold uppercase tracking-wide text-zinc-400 ${large ? 'text-base' : 'text-sm'}`}>
         Submission progress
       </h3>
+      {counts.length === 0 && <p className="text-sm text-zinc-500">Nobody has joined yet.</p>}
       <ul className="space-y-2">
         {counts.map((c) => (
-          <li key={c.player_id} className="flex items-center justify-between text-sm">
+          <li key={c.player_id} className={`flex items-center justify-between ${large ? 'text-xl' : 'text-sm'}`}>
             <span className="text-zinc-200">{c.display_name}</span>
             <span className={Number(c.submitted) >= cap ? 'text-emerald-400' : 'text-zinc-500'}>
               {c.submitted}/{cap}
@@ -242,7 +260,7 @@ function LinkStatus({ id, status, checked }: { id: string; status: YouTubeCheck 
   const text = !checked ? 'Checking the link…'
     : status?.ok ? '✓ Found on YouTube'
     : status?.reason === 'missing' ? "Couldn't find this video. It may be private or deleted."
-    : status?.reason === 'blocked' ? "This video can't play here (its uploader blocks embedding). 🎧 Audio only still works."
+    : status?.reason === 'blocked' ? "This video can't play here (its uploader blocks embedding). Try another upload."
     : "Couldn't check this link, but you can still add it.";
   return (
     <div className="flex items-center gap-3" aria-live="polite">

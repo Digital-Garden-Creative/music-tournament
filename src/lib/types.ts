@@ -1,7 +1,6 @@
 export type RoomStatus = 'lobby' | 'submitting' | 'in_progress' | 'complete';
 export type MediaType = 'video' | 'audio';
-export type RipStatus = 'none' | 'pending' | 'processing' | 'ready' | 'failed';
-export type MatchStatus = 'pending' | 'open' | 'discussion' | 'closed';
+export type MatchStatus = 'pending' | 'listening' | 'open' | 'discussion' | 'closed';
 
 export interface RoomParams {
   songs_per_player: number;
@@ -17,6 +16,8 @@ export interface Room {
   status: RoomStatus;
   params: RoomParams;
   revealed: boolean;
+  /** Presented on a TV: the host seat is a non-voting presenter and phones don't play audio. */
+  live: boolean;
 }
 
 export interface Player {
@@ -24,6 +25,8 @@ export interface Player {
   room_id: string;
   display_name: string;
   is_host: boolean;
+  /** The TV seat in a live room: runs the game, never submits or votes. */
+  is_presenter: boolean;
   connected: boolean;
 }
 
@@ -34,9 +37,8 @@ export interface PublicSubmission {
   title: string;
   source_url: string;
   youtube_id: string | null;
+  /** 'audio' picks play through a hidden YouTube player, so only the sound is heard. */
   media_type: MediaType;
-  rip_status: RipStatus;
-  audio_url: string | null;
 }
 
 /** A submitter's own pick (full detail). */
@@ -49,8 +51,13 @@ export interface Match {
   room_id: string;
   round: number;
   slot: number;
+  /** 2 for a head-to-head, 3 for a three-way (rounds with an odd number of songs). */
+  size: 2 | 3;
   song_a: string | null;
   song_b: string | null;
+  song_c: string | null;
+  /** In a three-way re-vote, the song that sat out after finishing behind two tied leaders. */
+  excluded: string | null;
   winner: string | null;
   status: MatchStatus;
   vote_round: number;
@@ -59,6 +66,7 @@ export interface Match {
   eligible_voters: number | null;
   votes_a: number | null;
   votes_b: number | null;
+  votes_c: number | null;
   opened_at: string | null;
   closes_at: string | null;
 }

@@ -17,6 +17,8 @@ export interface RoomState {
   owners: Record<string, string>;
   /** Ids of this player's own picks (known to them even in anonymous rooms). */
   myPickIds: string[];
+  /** This seat is the TV in a live room: it runs the game but doesn't submit or vote. */
+  isPresenter: boolean;
   refresh: () => Promise<void>;
 }
 
@@ -44,7 +46,7 @@ export function useRoom(code: string) {
     const [r, p, s, m] = await Promise.all([
       getRoom(roomId), getPlayers(roomId), getSubmissions(roomId), getMatches(roomId),
     ]);
-    setRoom(r); setPlayers(p as Player[]); setSubmissions(s); setMatches(m);
+    setRoom(r); setPlayers(withoutTv(p as Player[])); setSubmissions(s); setMatches(m);
   }, []);
 
   const refresh = useCallback(async () => {
@@ -95,7 +97,7 @@ export function useRoom(code: string) {
         async () => setRoom(await getRoom(roomId)))
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'players', filter: `room_id=eq.${roomId}` },
-        async () => setPlayers((await getPlayers(roomId)) as Player[]))
+        async () => setPlayers(withoutTv((await getPlayers(roomId)) as Player[])))
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'matches', filter: `room_id=eq.${roomId}` },
         async () => setMatches(await getMatches(roomId)))
@@ -103,20 +105,17 @@ export function useRoom(code: string) {
     return () => { supabase.removeChannel(channel); };
   }, [session]);
 
-  // Submissions aren't on the realtime feed (the table is private), so poll: while picks
-  // are coming in, and while any audio rip is still running (it can finish mid-bracket).
-  const ripsRunning = submissions.some(
-    (s) => s.media_type === 'audio' && (s.rip_status === 'pending' || s.rip_status === 'processing'),
-  );
+  // Submissions aren't on the realtime feed (the table is private), so poll while picks
+  // are coming in.
   useEffect(() => {
     if (!session || !room) return;
     const roomId = session.roomId;
     getSubmissions(roomId).then(setSubmissions).catch(() => {});
-    if (room.status === 'lobby' || room.status === 'submitting' || ripsRunning) {
+    if (room.status === 'lobby' || room.status === 'submitting') {
       const id = setInterval(() => getSubmissions(roomId).then(setSubmissions).catch(() => {}), 4000);
       return () => clearInterval(id);
     }
-  }, [session, room?.status, ripsRunning]);
+  }, [session, room?.status]);
 
   // Who picked what, once the room allows it.
   const ownersVisible = !!room && (room.revealed || !room.params.anonymous);
@@ -160,6 +159,12 @@ export function useRoom(code: string) {
     };
   }, [session, refresh]);
 
-  const state: RoomState = { session, room, players, submissions, matches, owners, myPickIds, refresh };
+  const isPresenter = !!room?.live && !!session?.isHost;
+  const state: RoomState = { session, room, players, submissions, matches, owners, myPickIds, isPresenter, refresh };
   return { phase, error, join, state };
+}
+
+// The TV seat isn't a player, so it stays out of player lists and online counts.
+function withoutTv(players: Player[]): Player[] {
+  return players.filter((p) => !p.is_presenter);
 }

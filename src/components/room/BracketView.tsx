@@ -55,16 +55,22 @@ function MatchCard({ match, subsById, owners, canOpen, onOpen }: {
   match: Match; subsById: Map<string, PublicSubmission>; owners: Record<string, string>;
   canOpen: boolean; onOpen: () => void;
 }) {
-  const a = match.song_a ? subsById.get(match.song_a) : null;
-  const b = match.song_b ? subsById.get(match.song_b) : null;
-  const row = (s: PublicSubmission | null | undefined, id: string | null, votes: number | null) => {
+  const rows = [
+    { id: match.song_a, votes: match.votes_a },
+    { id: match.song_b, votes: match.votes_b },
+    ...(match.size === 3 || match.song_c ? [{ id: match.song_c, votes: match.votes_c }] : []),
+  ];
+  const row = (id: string | null, votes: number | null) => {
+    const s = id ? subsById.get(id) : null;
     const isWinner = match.winner && match.winner === id;
+    const out = !!id && id === match.excluded;
     return (
       <div className={`flex items-center justify-between gap-2 px-3 py-2 text-sm ${
-        isWinner ? 'font-semibold text-emerald-300' : 'text-zinc-300'
+        isWinner ? 'font-semibold text-emerald-300' : out ? 'text-zinc-500 line-through' : 'text-zinc-300'
       }`}>
         <span className="min-w-0 truncate" title={s?.title}>
-          {s ? s.title : <span className="text-zinc-600">{match.round === 1 ? '— bye —' : 'TBD'}</span>}
+          {/* rooms from before three-way matches could still have byes */}
+          {s ? s.title : <span className="text-zinc-600">{match.round === 1 && match.status === 'closed' ? '— bye —' : 'TBD'}</span>}
           {s && owners[s.id] && <span className="ml-1.5 text-xs font-normal text-zinc-500">· {owners[s.id]}</span>}
         </span>
         {match.status === 'closed' && match.opened_at && votes !== null && (
@@ -75,18 +81,26 @@ function MatchCard({ match, subsById, owners, canOpen, onOpen }: {
   };
   return (
     <div className={`overflow-hidden rounded-xl border ${
-      match.status === 'open' ? 'border-fuchsia-500/60 ring-1 ring-fuchsia-500/30'
+      match.status === 'open' || match.status === 'listening' ? 'border-fuchsia-500/60 ring-1 ring-fuchsia-500/30'
         : match.status === 'discussion' ? 'border-amber-500/50'
         : 'border-zinc-800'
     } bg-zinc-900/40`}>
-      {row(a, match.song_a, match.votes_a)}
-      <div className="h-px bg-zinc-800" />
-      {row(b, match.song_b, match.votes_b)}
+      {rows.map((r, i) => (
+        <div key={i}>
+          {i > 0 && <div className="h-px bg-zinc-800" />}
+          {row(r.id, r.votes)}
+        </div>
+      ))}
       {canOpen && (
         <button onClick={onOpen}
           className="min-h-[36px] w-full bg-fuchsia-600/90 py-1.5 text-xs font-semibold text-white transition hover:bg-fuchsia-500">
           Open voting
         </button>
+      )}
+      {match.status === 'listening' && (
+        <div className="bg-fuchsia-500/15 py-1.5 text-center text-xs font-semibold text-fuchsia-300">
+          🎧 Listening
+        </div>
       )}
       {match.status === 'discussion' && (
         <div className="bg-amber-500/15 py-1.5 text-center text-xs font-semibold text-amber-300">

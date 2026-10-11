@@ -20,8 +20,9 @@ interface ResumeResult {
   is_host: boolean; host_token: string | null;
 }
 
-export async function createRoom(hostName: string): Promise<Session> {
-  const r = await rpc<CreateResult>('create_room', { p_host_name: hostName });
+/** `live` makes this seat the TV presenter (no name needed) instead of a playing host. */
+export async function createRoom(hostName: string, live = false): Promise<Session> {
+  const r = await rpc<CreateResult>('create_room', { p_host_name: hostName, p_live: live });
   return {
     roomId: r.room_id, code: r.code, playerId: r.player_id,
     sessionToken: r.session_token, isHost: true, hostToken: r.host_token,
@@ -84,6 +85,11 @@ export function openMatch(hostToken: string, matchId: string): Promise<void> {
   return rpc('open_match', { p_host_token: hostToken, p_match_id: matchId });
 }
 
+/** Ends a match's listening stage and starts the vote timer. */
+export function startVoting(hostToken: string, matchId: string): Promise<void> {
+  return rpc('start_voting', { p_host_token: hostToken, p_match_id: matchId });
+}
+
 export function castVote(sessionToken: string, matchId: string, choice: string): Promise<void> {
   return rpc('cast_vote', {
     p_session_token: sessionToken, p_match_id: matchId, p_choice: choice,
@@ -115,14 +121,14 @@ export async function ownership(roomId: string): Promise<{ submission_id: string
 
 export async function getRoom(roomId: string): Promise<Room> {
   const { data, error } = await supabase
-    .from('rooms').select('id, code, status, params, revealed').eq('id', roomId).single();
+    .from('rooms').select('id, code, status, params, revealed, live').eq('id', roomId).single();
   if (error) throw new Error(error.message);
   return data as Room;
 }
 
 export async function getPlayers(roomId: string) {
   const { data, error } = await supabase
-    .from('players').select('id, room_id, display_name, is_host, connected')
+    .from('players').select('id, room_id, display_name, is_host, is_presenter, connected')
     .eq('room_id', roomId).order('joined_at');
   if (error) throw new Error(error.message);
   return data ?? [];

@@ -2,8 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { setStatus, updateParams } from '../../lib/api';
 import type { RoomParams } from '../../lib/types';
 import type { ReadyRoomState, RoomState } from '../../lib/useRoom';
+import QrCode from './QrCode';
 
-export default function Lobby({ session, room, players }: ReadyRoomState) {
+export default function Lobby({ session, room, players, isPresenter }: ReadyRoomState) {
   const isHost = session.isHost;
   const [params, setLocal] = useState(room.params);
   const [saving, setSaving] = useState(false);
@@ -42,6 +43,8 @@ export default function Lobby({ session, room, players }: ReadyRoomState) {
   }
 
   return (
+    <>
+    {isPresenter && <JoinPanel code={room.code} />}
     <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_280px]">
       <section className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6">
         <h2 className="text-lg font-semibold">Tournament settings</h2>
@@ -93,6 +96,9 @@ export default function Lobby({ session, room, players }: ReadyRoomState) {
             <li><span className="text-zinc-500">Vote timer:</span> {room.params.vote_timer_seconds}s</li>
             <li><span className="text-zinc-500">Vote on your own picks:</span> {room.params.allow_self_vote ? 'allowed' : 'not allowed'}</li>
             <li><span className="text-zinc-500">Picks:</span> {room.params.anonymous ? 'anonymous until the end' : 'names shown'}</li>
+            {room.live && (
+              <li className="pt-3 text-sky-300">📺 Songs play on the TV. Your phone is for picking and voting.</li>
+            )}
             <li className="pt-3 text-zinc-500">Waiting for the organizer to open submissions…</li>
           </ul>
         )}
@@ -100,6 +106,24 @@ export default function Lobby({ session, room, players }: ReadyRoomState) {
 
       <PlayerList players={players} />
     </div>
+    </>
+  );
+}
+
+// On the TV: the room code and a QR code, big enough to read across the room.
+function JoinPanel({ code }: { code: string }) {
+  const url = `${window.location.origin}/room?code=${code}`;
+  return (
+    <section className="mb-6 flex flex-col items-center gap-6 rounded-2xl border border-sky-500/30 bg-sky-500/5 p-6 sm:flex-row sm:justify-center sm:gap-10">
+      <QrCode text={url} label={`QR code to join room ${code}`} className="h-44 w-44 rounded-xl sm:h-56 sm:w-56" />
+      <div className="text-center sm:text-left">
+        <p className="text-sm font-semibold uppercase tracking-widest text-zinc-400">Join on your phone</p>
+        <p className="font-mono text-6xl font-black tracking-[0.25em] text-fuchsia-400 sm:text-7xl">{code}</p>
+        <p className="mt-3 text-zinc-400">
+          Scan the code, or go to <span className="text-zinc-200">{window.location.host}</span> and enter it.
+        </p>
+      </div>
+    </section>
   );
 }
 

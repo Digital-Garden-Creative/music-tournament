@@ -4,7 +4,7 @@ import BoyBandPoster from './BoyBandPoster';
 import { latestSession, saveSession } from '../lib/session';
 import type { Session } from '../lib/types';
 
-type Mode = 'menu' | 'create' | 'join';
+type Mode = 'menu' | 'host' | 'create' | 'join';
 
 export default function Home() {
   const [mode, setMode] = useState<Mode>('menu');
@@ -21,6 +21,18 @@ export default function Home() {
     setBusy(true); setError(null);
     try {
       const session = await createRoom(name.trim());
+      saveSession(session);
+      window.location.href = `/room?code=${session.code}`;
+    } catch (err) {
+      setError((err as Error).message); setBusy(false);
+    }
+  }
+
+  // A live room's host seat is the TV presenter, so it needs no name.
+  async function handleCreateLive() {
+    setBusy(true); setError(null);
+    try {
+      const session = await createRoom('', true);
       saveSession(session);
       window.location.href = `/room?code=${session.code}`;
     } catch (err) {
@@ -61,7 +73,7 @@ export default function Home() {
               </a>
             )}
             <button
-              onClick={() => { setMode('create'); setError(null); }}
+              onClick={() => { setMode('host'); setError(null); }}
               className="rounded-xl bg-fuchsia-600 px-4 py-3 font-semibold text-white transition hover:bg-fuchsia-500"
             >
               Host a tournament
@@ -71,6 +83,29 @@ export default function Home() {
               className="rounded-xl border border-zinc-700 bg-zinc-800/60 px-4 py-3 font-semibold text-zinc-100 transition hover:border-zinc-600 hover:bg-zinc-800"
             >
               Join with a code
+            </button>
+          </div>
+        )}
+
+        {mode === 'host' && (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-zinc-400">How are you playing?</p>
+            <button onClick={() => { setMode('create'); setError(null); }} disabled={busy}
+              className="rounded-xl border border-zinc-700 bg-zinc-800/60 px-4 py-3 text-left transition hover:border-fuchsia-500/60 hover:bg-zinc-800 disabled:opacity-50">
+              <span className="block font-semibold text-zinc-100">📱 Play from my phone</span>
+              <span className="block text-sm text-zinc-400">Everyone listens and votes on their own device.</span>
+            </button>
+            <button onClick={handleCreateLive} disabled={busy}
+              className="rounded-xl border border-zinc-700 bg-zinc-800/60 px-4 py-3 text-left transition hover:border-fuchsia-500/60 hover:bg-zinc-800 disabled:opacity-50">
+              <span className="block font-semibold text-zinc-100">📺 Present on a TV</span>
+              <span className="block text-sm text-zinc-400">
+                This screen plays the songs and runs the game. Phones just pick and vote, so join
+                from your phone too if you're playing.
+              </span>
+            </button>
+            <button type="button" onClick={() => setMode('menu')}
+              className="min-h-[36px] rounded-xl px-4 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800">
+              Back
             </button>
           </div>
         )}
@@ -85,7 +120,7 @@ export default function Home() {
                 className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-fuchsia-500"
               />
             </label>
-            <Actions busy={busy} onBack={() => setMode('menu')} label="Create room" />
+            <Actions busy={busy} onBack={() => setMode('host')} label="Create room" />
           </form>
         )}
 
