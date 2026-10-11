@@ -1,8 +1,22 @@
 import { supabase } from './supabase';
 import type { Match, MyPick, PublicSubmission, Room, Session } from './types';
 
+// Calls that are safe to repeat: votes overwrite the voter's previous choice, heartbeats and
+// expiry-closes are no-ops when repeated, and the rest only read.
+const RETRYABLE = new Set([
+  'cast_vote', 'heartbeat', 'close_expired_match', 'resume_session', 'my_picks', 'ownership',
+]);
+// The free-tier database occasionally cancels a request under a burst ("statement timeout"),
+// and phones drop connections; one quick retry covers both.
+const TRANSIENT = /statement timeout|Failed to fetch|NetworkError|Load failed|fetch failed/i;
+
 async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
-  const { data, error } = await supabase.rpc(fn, args);
+  const call = () => supabase.rpc(fn, args);
+  let { data, error } = await call();
+  if (error && RETRYABLE.has(fn) && TRANSIENT.test(error.message)) {
+    await new Promise((r) => setTimeout(r, 400 + Math.random() * 400));
+    ({ data, error } = await call());
+  }
   if (error) throw new Error(error.message);
   return data as T;
 }
