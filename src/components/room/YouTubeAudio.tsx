@@ -4,7 +4,7 @@ import { loadYouTubeApi, pauseOthers, registerPlayer } from '../../lib/youtubePl
 import type { YTPlayer } from '../../lib/youtubePlayer';
 
 // Plays a YouTube video's sound with the picture hidden ("Audio only" picks), so nothing
-// has to be ripped. The real player sits underneath a blurred-thumbnail cover that lets taps
+// has to be ripped. The real player sits underneath a thumbnail cover that lets taps
 // fall through to it: phones (iOS especially) only start sound from a tap on the player
 // itself. Our own play/pause button and seek bar below drive it through the IFrame API.
 // Starting it pauses any other song on the page.
@@ -84,8 +84,7 @@ export default function YouTubeAudio({ youtubeId, title }: { youtubeId: string; 
         <div ref={wrap} className="absolute inset-0" />
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-cover bg-center"
           style={{ backgroundImage: `url(${youTubeThumb(youtubeId)})` }}>
-          <div className="absolute inset-0 bg-zinc-950/75 backdrop-blur-md" />
-          <div className="relative flex flex-col items-center gap-2 text-center">
+          <div className="relative flex flex-col items-center gap-2 rounded-2xl bg-zinc-950/70 px-4 py-3 text-center">
             <span className={`grid h-14 w-14 place-items-center rounded-full text-xl text-white shadow-lg ${
               playing ? 'bg-fuchsia-600/90' : 'bg-fuchsia-600'
             }`} aria-hidden="true">
