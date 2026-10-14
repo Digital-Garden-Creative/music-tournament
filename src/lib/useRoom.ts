@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from './supabase';
 import {
-  getMatches, getPlayers, getRoom, getSubmissions, heartbeat, joinRoom, myPicks, ownership,
+  getMatches, getPlayers, getRoom, getSubmissions, joinRoom, myPicks, ownership,
   resumeSession,
 } from './api';
 import { clearSession, loadSession, saveSession } from './session';
@@ -40,6 +40,8 @@ export function useRoom(code: string) {
   const [matches, setMatches] = useState<Match[]>([]);
   const [owners, setOwners] = useState<Record<string, string>>({});
   const [myPickIds, setMyPickIds] = useState<string[]>([]);
+  // Player ids with a device in the room right now, from Realtime Presence.
+  const [online, setOnline] = useState<ReadonlySet<string>>(new Set());
   const roomIdRef = useRef<string | null>(null);
 
   const reloadRoom = useCallback(async (roomId: string) => {
@@ -86,23 +88,35 @@ export function useRoom(code: string) {
     await enter(await joinRoom(code, name));
   }, [code, enter]);
 
-  // Realtime: any change to room/players/matches → refetch that slice.
+  // Realtime: any change to room/players/matches → refetch that slice. The same channel
+  // carries Presence: each device announces its player id, and the server drops it when the
+  // connection closes (tab closed, phone locked, signal lost). That drives the online dots
+  // without writing to the database.
   useEffect(() => {
     if (!session) return;
     const roomId = session.roomId;
-    const channel = supabase
-      .channel(`room:${roomId}`)
+    const reloadRoom = coalesced(() => getRoom(roomId), setRoom);
+    const reloadPlayers = coalesced(() => getPlayers(roomId), (p) => setPlayers(withoutTv(p as Player[])));
+    const reloadMatches = coalesced(() => getMatches(roomId), setMatches);
+    const channel = supabase.channel(`room:${roomId}`, {
+      config: { presence: { key: session.playerId } },
+    });
+    channel
+      .on('presence', { event: 'sync' }, () => setOnline(new Set(Object.keys(channel.presenceState()))))
       .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` },
-        async () => setRoom(await getRoom(roomId)))
+        { event: '*', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` }, reloadRoom)
       .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'players', filter: `room_id=eq.${roomId}` },
-        async () => setPlayers(withoutTv((await getPlayers(roomId)) as Player[])))
+        { event: '*', schema: 'public', table: 'players', filter: `room_id=eq.${roomId}` }, reloadPlayers)
       .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'matches', filter: `room_id=eq.${roomId}` },
-        async () => setMatches(await getMatches(roomId)))
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+        { event: '*', schema: 'public', table: 'matches', filter: `room_id=eq.${roomId}` }, reloadMatches)
+      .subscribe((status) => {
+        // (re)joined, including after a dropped connection comes back
+        if (status === 'SUBSCRIBED') channel.track({ at: Date.now() }).catch(() => {});
+      });
+    return () => {
+      reloadRoom.cancel(); reloadPlayers.cancel(); reloadMatches.cancel();
+      supabase.removeChannel(channel);
+    };
   }, [session]);
 
   // Submissions aren't on the realtime feed (the table is private), so poll while picks
@@ -137,34 +151,48 @@ export function useRoom(code: string) {
     myPicks(session.sessionToken).then((ps) => setMyPickIds(ps.map((p) => p.id))).catch(() => {});
   }, [session, room?.status]);
 
-  // Heartbeat keeps us counted as online for the early-finish vote check. When a phone
-  // wakes up, beat immediately and refetch anything realtime missed while asleep.
+  // When a phone wakes up, refetch anything realtime missed while it was asleep.
   useEffect(() => {
     if (!session) return;
-    const token = session.sessionToken;
-    const beat = (connected: boolean) => { heartbeat(token, connected).catch(() => {}); };
-    beat(true);
-    const id = setInterval(() => beat(true), 15000);
     const onVisible = () => {
-      if (document.visibilityState === 'visible') { beat(true); refresh().catch(() => {}); }
+      if (document.visibilityState === 'visible') refresh().catch(() => {});
     };
-    const bye = () => beat(false);
     document.addEventListener('visibilitychange', onVisible);
-    window.addEventListener('pagehide', bye);
-    return () => {
-      clearInterval(id);
-      document.removeEventListener('visibilitychange', onVisible);
-      window.removeEventListener('pagehide', bye);
-      bye();
-    };
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, [session, refresh]);
 
+  const playersOnline = useMemo(
+    () => players.map((p) => ({ ...p, connected: online.has(p.id) })),
+    [players, online],
+  );
   const isPresenter = !!room?.live && !!session?.isHost;
-  const state: RoomState = { session, room, players, submissions, matches, owners, myPickIds, isPresenter, refresh };
+  const state: RoomState = {
+    session, room, players: playersOnline, submissions, matches, owners, myPickIds, isPresenter, refresh,
+  };
   return { phase, error, join, state };
 }
 
 // The TV seat isn't a player, so it stays out of player lists and online counts.
 function withoutTv(players: Player[]): Player[] {
   return players.filter((p) => !p.is_presenter);
+}
+
+// Refetches one slice after realtime changes. Changes landing within `ms` of the first (a
+// burst of votes) share one fetch, and a slow earlier response never overwrites a newer one.
+function coalesced<T>(load: () => Promise<T>, apply: (value: T) => void, ms = 250) {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let latest = 0;
+  const run = () => {
+    if (timer) return;
+    timer = setTimeout(async () => {
+      timer = null;
+      const mine = ++latest;
+      try {
+        const value = await load();
+        if (mine === latest) apply(value);
+      } catch { /* the next change, or the wake-up refresh, catches up */ }
+    }, ms);
+  };
+  run.cancel = () => { if (timer) clearTimeout(timer); timer = null; latest++; };
+  return run;
 }

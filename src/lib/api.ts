@@ -1,10 +1,10 @@
 import { supabase } from './supabase';
 import type { Match, MyPick, PublicSubmission, Room, Session } from './types';
 
-// Calls that are safe to repeat: votes overwrite the voter's previous choice, heartbeats and
-// expiry-closes are no-ops when repeated, and the rest only read.
+// Calls that are safe to repeat: votes overwrite the voter's previous choice, expiry-closes
+// are no-ops when repeated, and the rest only read.
 const RETRYABLE = new Set([
-  'cast_vote', 'heartbeat', 'close_expired_match', 'resume_session', 'my_picks', 'ownership',
+  'cast_vote', 'close_expired_match', 'resume_session', 'my_picks', 'ownership',
 ]);
 // The free-tier database occasionally cancels a request under a burst ("statement timeout"),
 // and phones drop connections; one quick retry covers both.
@@ -59,10 +59,6 @@ export async function resumeSession(sessionToken: string): Promise<Session> {
     roomId: r.room_id, code: r.code, playerId: r.player_id,
     sessionToken, isHost: r.is_host, hostToken: r.host_token,
   };
-}
-
-export function heartbeat(sessionToken: string, connected = true): Promise<void> {
-  return rpc('heartbeat', { p_session_token: sessionToken, p_connected: connected });
 }
 
 export function updateParams(hostToken: string, params: Record<string, unknown>): Promise<unknown> {
@@ -157,7 +153,8 @@ export async function getRoom(roomId: string): Promise<Room> {
 
 export async function getPlayers(roomId: string) {
   const { data, error } = await supabase
-    .from('players').select('id, room_id, display_name, is_host, is_presenter, connected')
+    // (online status comes from Realtime Presence, not the stored `connected` column)
+    .from('players').select('id, room_id, display_name, is_host, is_presenter')
     .eq('room_id', roomId).order('joined_at');
   if (error) throw new Error(error.message);
   return data ?? [];

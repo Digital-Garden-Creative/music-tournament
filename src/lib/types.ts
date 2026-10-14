@@ -29,6 +29,7 @@ export interface Player {
   is_host: boolean;
   /** The TV seat in a live room: runs the game, never submits or votes. */
   is_presenter: boolean;
+  /** A device is in the room right now (Realtime Presence, filled in by useRoom). */
   connected: boolean;
 }
 
