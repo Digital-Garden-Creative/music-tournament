@@ -168,7 +168,7 @@ function HandEditor({ order, sizes, title, busy, onCancel, onSave }: {
             {Array.from({ length: g.size }, (_, k) => g.start + k).map((i) => (
               <button key={i} onClick={() => tapSlot(i)}
                 className={`flex min-h-[40px] w-full items-center gap-2 px-3 py-2 text-left text-sm transition ${
-                  picked === i ? 'bg-violet-600/30 text-white' : 'text-zinc-200 hover:bg-zinc-800/70'
+                  picked === i ? 'bg-violet-600/50 text-white ring-2 ring-inset ring-violet-400' : 'text-zinc-200 hover:bg-zinc-800/70'
                 }`}>
                 <span className="w-5 shrink-0 text-xs text-zinc-500">{i + 1}</span>
                 <span className="min-w-0 truncate">
