@@ -36,6 +36,10 @@ until one track is crowned champion.
 - **Host controls mid-game**: the host can change a decided match's winner (later matches
   it fed are reset and replayed), and change self-voting, anonymity, the vote timer and
   audio-only while the tournament runs.
+- **Who's online**: the green dots come from Supabase Realtime Presence, so being online
+  costs no database writes.
+- **Limits** (for a public site): 10 new rooms per network and 100 overall per 10 minutes,
+  30 players per room, and room settings clamped to the ranges the app offers.
 - **Reveal**: at the end every pick is de-anonymized. With "anonymous picks" off, names
   show throughout. The results page draws a bracket image and a champion card to save or
   share.
