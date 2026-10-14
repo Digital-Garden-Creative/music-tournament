@@ -172,7 +172,7 @@ export async function drawBracket({ room, matches, subsById, owners }: ExportDat
   rounds.forEach((_, r) => {
     ctx.font = font(700, 15);
     ctx.fillStyle = C.muted;
-    ctx.fillText(roundName(r + 1, total).toUpperCase(), colX(r), top - 22);
+    ctx.fillText(roundName(r + 1, total, rounds[r].length).toUpperCase(), colX(r), top - 22);
   });
 
   // connectors first, so cards sit on top of them
@@ -312,7 +312,7 @@ export function standings(matches: Match[]): Placing[] {
       [{ id: m.song_a, v: m.votes_a }, { id: m.song_b, v: m.votes_b }, { id: m.song_c, v: m.votes_c }]
         .filter((x): x is { id: string; v: number | null } => !!x.id && !!m.winner && x.id !== m.winner))
       .sort((a, b) => (b.v ?? -1) - (a.v ?? -1));
-    losers.forEach((x) => out.push({ id: x.id, label: `Out in the ${roundName(r + 1, total).toLowerCase()}`, place }));
+    losers.forEach((x) => out.push({ id: x.id, label: `Out in the ${roundName(r + 1, total, rounds[r].length).toLowerCase()}`, place }));
     place += losers.length;
   }
   return out;
