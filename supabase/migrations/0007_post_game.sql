@@ -1,9 +1,9 @@
 -- Song Tournament — changes after the first real game:
---   * every player counts toward "everyone has voted", online or not (a locked phone used to
+--   * every player counts toward everyone-has-voted, online or not (a locked phone used to
 --     drop out and let a match close early on too few votes)
 --   * an `audio_only` room setting
 --   * the host can reshuffle or hand-place the round-1 draw until the first match opens
---   * the host can change a decided match's winner; later matches it fed are reset
+--   * the host can change the winner of a decided match; later matches it fed are reset
 --   * settings changed mid-vote are applied to the open match straight away
 --
 -- Apply by hand in the Supabase SQL Editor after 0006.
@@ -17,12 +17,12 @@ alter table rooms alter column params set default jsonb_build_object(
   'audio_only', false
 );
 
--- set when the host picked this match's winner instead of the vote
+-- set when the host picked the winner of this match instead of the vote
 alter table matches add column if not exists overridden boolean not null default false;
 
 -- ──────────────────────────────────────────────────────────── voting ──
 
--- Players who may vote in this match and haven't voted in its current round. Being offline
+-- Players who may vote in this match and have not voted in its current round. Being offline
 -- no longer excuses anyone: the timer is what closes a vote someone sleeps through.
 create or replace function _pending_voters(m matches) returns int
 language sql stable security definer set search_path = public as $$
@@ -101,7 +101,7 @@ begin
   delete from matches where room_id = r.id;
 
   -- every round halves (rounding down) until one match is left; an odd count makes the
-  -- round's last match a three-way
+  -- last match of the round a three-way
   m := n; v_round := 0;
   while m > 1 loop
     v_round := v_round + 1;
@@ -128,7 +128,7 @@ begin
   perform _fill_round_one(r.id, _fair_shuffle(r.id));
 end $$;
 
--- The host's own draw: every song in the room, each once, in round-1 order.
+-- A draw chosen by the host: every song in the room, each once, in round-1 order.
 create or replace function set_seed_order(p_host_token uuid, p_order uuid[])
 returns void language plpgsql security definer set search_path = public as $$
 declare r rooms; n int;
@@ -149,7 +149,7 @@ end $$;
 
 -- ────────────────────────────────────────────────────────── overrides ──
 
--- Take p_match's winner back out of the next round. If that next match had already started,
+-- Take the winner of p_match back out of the next round. If that next match had already started,
 -- its result is void too: reset it and undo whatever it sent onward, all the way up.
 create or replace function _unadvance(p_match matches)
 returns void language plpgsql security definer set search_path = public as $$
@@ -178,7 +178,7 @@ begin
   end if;
 end $$;
 
--- The host changes a decided match's winner. Later matches the old winner reached are reset
+-- The host changes the winner of a decided match. Later matches the old winner reached are reset
 -- (to be played again with the new winner), and the new winner moves on in its place.
 create or replace function override_winner(p_host_token uuid, p_match_id uuid, p_winner uuid)
 returns void language plpgsql security definer set search_path = public as $$
@@ -189,7 +189,7 @@ begin
   select * into m from matches where id = p_match_id and room_id = r.id for update;
   if not found then raise exception 'no such match'; end if;
   if m.status <> 'closed' or m.winner is null then raise exception 'only a decided match can be changed'; end if;
-  -- (not "= any(...)": an empty slot C makes that null rather than false)
+  -- (not = any(...), because an empty slot C makes that null rather than false)
   if p_winner is null or not exists (
     select 1 from unnest(array[m.song_a, m.song_b, m.song_c]) x where x = p_winner
   ) then
