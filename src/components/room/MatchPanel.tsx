@@ -84,6 +84,10 @@ export default function MatchPanel({ match, subsById, state }: {
   } else if (revealed) {
     status = match.overridden ? 'Match complete. The organizer picked the winner.' : 'Match complete.';
   }
+  // With self-voting off, a match where every player has a song can never get a vote (e.g.
+  // three players in a three-way). Tell the host the way out.
+  const stuck = isHost && !room.params.allow_self_vote
+    && ((open && match.eligible_voters === 0) || (tie && match.voted_player_ids.length === 0));
 
   return (
     <section className="mb-6 rounded-2xl border border-fuchsia-500/40 bg-zinc-900/60 p-5 shadow-lg shadow-fuchsia-950/20">
@@ -122,6 +126,12 @@ export default function MatchPanel({ match, subsById, state }: {
       </div>
 
       {error && <p className="mt-3 text-sm text-rose-400">{error}</p>}
+      {stuck && (
+        <p className={`mt-3 rounded-lg bg-amber-500/10 px-3 py-2 text-amber-200 ${isPresenter ? 'text-base' : 'text-sm'}`}>
+          Nobody can vote in this match: every player has a song in it and self-voting is off.
+          {open ? ' Close it, turn' : ' Turn'} on self-voting under Rules, then start the re-vote.
+        </p>
+      )}
 
       <div className={`mt-4 flex flex-wrap items-center justify-between gap-3 text-zinc-400 ${isPresenter ? 'text-lg' : 'text-sm'}`}>
         <span>{status}</span>

@@ -32,7 +32,7 @@ export default function BracketView({ matches, subsById, owners, canOpen, onOpen
       {rounds.map(([round, ms]) => (
         <div key={round} className="min-w-[220px] flex-1">
           <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-            {roundName(round, totalRounds)}
+            {roundName(round, totalRounds, ms.length)}
           </h3>
           <div className="flex flex-col gap-3">
             {ms.map((m) => (
