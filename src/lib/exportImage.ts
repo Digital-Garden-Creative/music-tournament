@@ -126,7 +126,9 @@ export async function drawBracket({ room, matches, subsById, owners }: ExportDat
   const final = rounds[total - 1]?.[0];
   const champion = final?.winner ? subsById.get(final.winner) : undefined;
 
-  const PAD = 56, COL = 300, GAP = 56, ROW = 40, CARD_GAP = 18, HEAD = 150, CHAMP = 340;
+  // rows get a second line for who picked each song, when that's known
+  const named = Object.keys(owners).length > 0;
+  const PAD = 56, COL = 340, GAP = 56, ROW = named ? 54 : 40, CARD_GAP = 18, HEAD = 150, CHAMP = 340;
   const cardH = (m: Match) => (m.size === 3 ? 3 : 2) * ROW + 26;
 
   // round 1 stacks top to bottom; every later match sits level with the middle of the
@@ -227,20 +229,17 @@ export async function drawBracket({ room, matches, subsById, owners }: ExportDat
       ctx.fillStyle = C.muted;
       ctx.fillText(votes, x + COL - 14, ry + ROW / 2);
       const textMax = COL - 28 - (votes ? 30 : 0);
+      const titleY = named ? ry + 19 : ry + ROW / 2;
       ctx.textAlign = 'left';
       ctx.font = font(win ? 700 : 500, 16);
       ctx.fillStyle = !s ? C.dim : win ? C.win : out ? C.dim : C.text;
-      const label = fit(ctx, s?.title ?? 'TBD', owner ? textMax * 0.68 : textMax);
-      ctx.fillText(label, x + 14, ry + ROW / 2);
-      if (out) {
-        const w = ctx.measureText(label).width;
-        ctx.fillRect(x + 14, ry + ROW / 2, w, 1.5);
-      }
+      const label = fit(ctx, s?.title ?? 'TBD', textMax);
+      ctx.fillText(label, x + 14, titleY);
+      if (out) ctx.fillRect(x + 14, titleY, ctx.measureText(label).width, 1.5);
       if (owner) {
-        const used = ctx.measureText(label).width;
         ctx.font = font(400, 13);
         ctx.fillStyle = C.muted;
-        ctx.fillText(fit(ctx, ` · ${owner}`, textMax - used), x + 14 + used, ry + ROW / 2 + 1);
+        ctx.fillText(fit(ctx, owner, textMax), x + 14, ry + 38);
       }
     });
     if (m.overridden) {
@@ -266,6 +265,7 @@ export async function drawBracket({ room, matches, subsById, owners }: ExportDat
     ctx.stroke();
     ctx.textAlign = 'center';
     ctx.font = font(400, 34);
+    ctx.fillStyle = '#fff';  // emoji take the fill's transparency
     ctx.fillText('🏆', x + boxW / 2, y0 + 34);
     if (img) drawCover(ctx, img, x + 16, y0 + 62, boxW - 32, imgH - 8, 10);
     ctx.font = font(700, 13);
@@ -339,25 +339,26 @@ export async function drawChampionCard({ room, matches, subsById, owners, player
 
   let y = 340;
   ctx.font = font(400, 110);
+  ctx.fillStyle = '#fff';
   ctx.fillText('🏆', W / 2, y + 60);
   y += 150;
   if (champ?.youtube_id) {
     const img = await loadImage(youTubeThumb(champ.youtube_id));
     if (img) {
-      const iw = W - PAD * 2, ih = Math.round(iw * 9 / 16);
+      const iw = 760, ih = Math.round(iw * 9 / 16), ix = (W - iw) / 2;
       ctx.save();
       ctx.shadowColor = 'rgba(245,158,11,0.45)';
       ctx.shadowBlur = 60;
       ctx.fillStyle = '#000';
-      roundRect(ctx, PAD, y, iw, ih, 28);
+      roundRect(ctx, ix, y, iw, ih, 28);
       ctx.fill();
       ctx.restore();
-      drawCover(ctx, img, PAD, y, iw, ih, 28);
+      drawCover(ctx, img, ix, y, iw, ih, 28);
       ctx.strokeStyle = 'rgba(252,211,77,0.6)';
       ctx.lineWidth = 4;
-      roundRect(ctx, PAD, y, iw, ih, 28);
+      roundRect(ctx, ix, y, iw, ih, 28);
       ctx.stroke();
-      y += ih + 60;
+      y += ih + 56;
     }
   }
   ctx.font = font(800, 26);
@@ -378,16 +379,16 @@ export async function drawChampionCard({ room, matches, subsById, owners, player
   }
 
   // standings, as many as fit above the footer
-  y += 40;
+  y += 24;
   ctx.fillStyle = C.border;
   ctx.fillRect(PAD, y, W - PAD * 2, 2);
-  y += 56;
+  y += 50;
   ctx.textAlign = 'left';
   ctx.font = font(800, 26);
   ctx.fillStyle = C.muted;
   ctx.fillText('FINAL STANDINGS', PAD, y);
   y += 56;
-  const ROW = 64, bottom = H - 150;
+  const ROW = 60, bottom = H - 130;
   const rest = ranked.slice(1);
   const fits = Math.max(0, Math.floor((bottom - y) / ROW));
   const shown = rest.length > fits ? rest.slice(0, Math.max(0, fits - 1)) : rest;
