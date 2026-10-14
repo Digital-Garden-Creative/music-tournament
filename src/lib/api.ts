@@ -95,6 +95,21 @@ export function seedBracket(hostToken: string): Promise<void> {
   return rpc('seed_bracket', { p_host_token: hostToken });
 }
 
+/** A fresh fair draw. Only before the first match opens. */
+export function reseedBracket(hostToken: string): Promise<void> {
+  return rpc('reseed_bracket', { p_host_token: hostToken });
+}
+
+/** Round 1 in this exact order (every song once). Only before the first match opens. */
+export function setSeedOrder(hostToken: string, order: string[]): Promise<void> {
+  return rpc('set_seed_order', { p_host_token: hostToken, p_order: order });
+}
+
+/** Make another song in a decided match the winner; later matches it fed are reset. */
+export function overrideWinner(hostToken: string, matchId: string, winner: string): Promise<void> {
+  return rpc('override_winner', { p_host_token: hostToken, p_match_id: matchId, p_winner: winner });
+}
+
 export function openMatch(hostToken: string, matchId: string): Promise<void> {
   return rpc('open_match', { p_host_token: hostToken, p_match_id: matchId });
 }

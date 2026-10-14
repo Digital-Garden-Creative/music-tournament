@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react';
-import { openMatch, revealRoom } from '../../lib/api';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { openMatch, overrideWinner, revealRoom } from '../../lib/api';
 import type { Match, PublicSubmission } from '../../lib/types';
 import type { ReadyRoomState } from '../../lib/useRoom';
 import BracketView from './BracketView';
 import MatchPanel from './MatchPanel';
 import { PlayerList } from './Lobby';
+import SeedingPanel, { withRoundOne } from './SeedingPanel';
+import { RulesCard } from './settings';
 
 export default function Bracket(state: ReadyRoomState) {
   const { session, matches, submissions, players, owners } = state;
@@ -32,6 +34,15 @@ export default function Bracket(state: ReadyRoomState) {
     .sort((x, y) => x.round - y.round || x.slot - y.slot)[0] ?? null;
   const title = (id: string | null) => (id && subsById.get(id)?.title) || '?';
 
+  // Before any match has started, the host can redo the draw.
+  const untouched = matches.length > 0 && matches.every((m) => m.status === 'pending' && !m.opened_at);
+  const [preview, setPreview] = useState<string[] | null>(null);
+  const shown = preview ? withRoundOne(matches, preview) : matches;
+
+  // The decided match whose winner the host is changing (looked up fresh on every update).
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const editing = matches.find((m) => m.id === editingId && m.status === 'closed') ?? null;
+
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
       <div>
@@ -46,6 +57,10 @@ export default function Bracket(state: ReadyRoomState) {
           />
         ) : (
           <>
+            {isHost && untouched && (
+              <SeedingPanel hostToken={session.hostToken!} matches={matches} subsById={subsById}
+                onPreview={setPreview} refresh={state.refresh} />
+            )}
             {lastPlayed && <MatchPanel match={lastPlayed} subsById={subsById} state={state} />}
             <div className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6 text-zinc-400">
               {isHost && nextUp ? (
@@ -72,15 +87,100 @@ export default function Bracket(state: ReadyRoomState) {
 
         {error && <p className="mb-4 text-sm text-rose-400">{error}</p>}
 
+        {editing && (
+          <OverridePanel match={editing} matches={matches} title={title}
+            onCancel={() => setEditingId(null)}
+            onPick={(winner) => {
+              setError(null);
+              overrideWinner(session.hostToken!, editing.id, winner)
+                .then(() => setEditingId(null))
+                .catch((e: Error) => setError(e.message));
+            }} />
+        )}
+
         <BracketView
-          matches={matches} subsById={subsById} owners={owners}
-          canOpen={(m) => isHost && !active && m.status === 'pending' && ready(m)}
+          matches={shown} subsById={subsById} owners={owners}
+          canOpen={(m) => isHost && !active && !preview && m.status === 'pending' && ready(m)}
           onOpen={(m) => act(openMatch(session.hostToken!, m.id))}
+          canEdit={(m) => isHost && m.status === 'closed' && !!m.winner}
+          onEdit={(m) => setEditingId(m.id)}
+          shuffling={!!preview}
         />
       </div>
 
-      <PlayerList players={players} />
+      <div className="flex flex-col gap-6">
+        <PlayerList players={players} />
+        <RulesCard session={session} room={state.room} />
+      </div>
     </div>
+  );
+}
+
+// The started matches a decided match's result fed into, in order: these are the ones
+// changing its winner resets.
+function laterPlayed(matches: Match[], from: Match): Match[] {
+  const out: Match[] = [];
+  let cur = from;
+  for (;;) {
+    const k = matches.filter((m) => m.round === cur.round).length;
+    if (k <= 1) break;
+    const g = Math.floor(k / 2);
+    const target = Math.min(Math.floor(cur.slot / 2), g - 1);
+    const next = matches.find((m) => m.round === cur.round + 1 && m.slot === target);
+    if (!next || (next.status === 'pending' && !next.opened_at)) break;
+    out.push(next);
+    cur = next;
+  }
+  return out;
+}
+
+function OverridePanel({ match, matches, title, onCancel, onPick }: {
+  match: Match; matches: Match[]; title: (id: string | null) => string;
+  onCancel: () => void; onPick: (winner: string) => void;
+}) {
+  const [choice, setChoice] = useState<string | null>(null);
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => { ref.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, [match.id]);
+  const songs = [match.song_a, match.song_b, match.song_c].filter((x): x is string => !!x);
+  const resets = laterPlayed(matches, match);
+  return (
+    <section ref={ref} className="mb-6 rounded-2xl border border-amber-500/40 bg-amber-500/5 p-5">
+      <h2 className="text-lg font-semibold">Change the winner</h2>
+      <p className="mt-1 text-sm text-zinc-400">Pick the song that should go through instead.</p>
+      <div className="mt-3 flex flex-col gap-2">
+        {songs.map((id) => {
+          const current = id === match.winner;
+          return (
+            <button key={id} onClick={() => setChoice(id)} disabled={current}
+              className={`flex min-h-[40px] items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm transition ${
+                choice === id ? 'border-amber-400 bg-amber-500/15 text-white'
+                  : current ? 'border-emerald-500/40 text-emerald-300'
+                  : 'border-zinc-700 text-zinc-200 hover:bg-zinc-800'
+              }`}>
+              <span className="min-w-0 truncate">{title(id)}</span>
+              {current && <span className="shrink-0 text-xs">current winner</span>}
+            </button>
+          );
+        })}
+      </div>
+      <p className="mt-3 text-sm text-amber-200/80">
+        {resets.length === 0
+          ? 'Nothing later has been played yet, so only this result changes.'
+          : `This resets ${resets.length} later ${resets.length === 1 ? 'match' : 'matches'}, which will be played again${
+              resets.some((m) => m.status !== 'closed') ? ', including the one in progress' : ''
+            }.`}
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button onClick={() => choice && onPick(choice)} disabled={!choice}
+          className="min-h-[40px] rounded-xl bg-amber-600 px-4 py-2 font-semibold text-white transition hover:bg-amber-500 disabled:opacity-40">
+          Make it the winner
+        </button>
+        <button onClick={onCancel}
+          className="min-h-[40px] rounded-xl px-4 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800">
+          Cancel
+        </button>
+      </div>
+    </section>
   );
 }
 

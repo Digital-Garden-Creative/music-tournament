@@ -8,6 +8,8 @@ export interface RoomParams {
   vote_timer_seconds: number;
   allow_self_vote: boolean;
   anonymous: boolean;
+  /** Every song plays with the video hidden, whatever its submitter chose. Missing in old rooms. */
+  audio_only?: boolean;
 }
 
 export interface Room {
@@ -59,6 +61,8 @@ export interface Match {
   /** In a three-way re-vote, the song that sat out after finishing behind two tied leaders. */
   excluded: string | null;
   winner: string | null;
+  /** The host picked this winner instead of the vote. */
+  overridden: boolean;
   status: MatchStatus;
   vote_round: number;
   voted_player_ids: string[];

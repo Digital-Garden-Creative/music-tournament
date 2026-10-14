@@ -1,21 +1,19 @@
 import { useMemo } from 'react';
+import { roundName } from '../../lib/bracket';
 import type { Match, PublicSubmission } from '../../lib/types';
 
-const ROUND_NAME = (round: number, totalRounds: number) => {
-  const fromEnd = totalRounds - round;
-  if (fromEnd === 0) return 'Final';
-  if (fromEnd === 1) return 'Semifinals';
-  if (fromEnd === 2) return 'Quarterfinals';
-  return `Round ${round}`;
-};
-
-/** The bracket as columns of match cards. Read-only unless `canOpen`/`onOpen` are given. */
-export default function BracketView({ matches, subsById, owners, canOpen, onOpen }: {
+/** The bracket as columns of match cards. Read-only unless `canOpen`/`onOpen` (start a
+ *  match) or `canEdit`/`onEdit` (change a decided match's winner) are given. */
+export default function BracketView({ matches, subsById, owners, canOpen, onOpen, canEdit, onEdit, shuffling = false }: {
   matches: Match[];
   subsById: Map<string, PublicSubmission>;
   owners: Record<string, string>;
   canOpen?: (m: Match) => boolean;
   onOpen?: (m: Match) => void;
+  canEdit?: (m: Match) => boolean;
+  onEdit?: (m: Match) => void;
+  /** Round 1 is mid shuffle-animation. */
+  shuffling?: boolean;
 }) {
   const totalRounds = matches.reduce((max, m) => Math.max(max, m.round), 0);
   const rounds = useMemo(() => {
@@ -34,7 +32,7 @@ export default function BracketView({ matches, subsById, owners, canOpen, onOpen
       {rounds.map(([round, ms]) => (
         <div key={round} className="min-w-[220px] flex-1">
           <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-            {ROUND_NAME(round, totalRounds)}
+            {roundName(round, totalRounds)}
           </h3>
           <div className="flex flex-col gap-3">
             {ms.map((m) => (
@@ -42,6 +40,9 @@ export default function BracketView({ matches, subsById, owners, canOpen, onOpen
                 key={m.id} match={m} subsById={subsById} owners={owners}
                 canOpen={canOpen?.(m) ?? false}
                 onOpen={() => onOpen?.(m)}
+                canEdit={canEdit?.(m) ?? false}
+                onEdit={() => onEdit?.(m)}
+                shuffling={shuffling && m.round === 1}
               />
             ))}
           </div>
@@ -51,9 +52,9 @@ export default function BracketView({ matches, subsById, owners, canOpen, onOpen
   );
 }
 
-function MatchCard({ match, subsById, owners, canOpen, onOpen }: {
+function MatchCard({ match, subsById, owners, canOpen, onOpen, canEdit, onEdit, shuffling }: {
   match: Match; subsById: Map<string, PublicSubmission>; owners: Record<string, string>;
-  canOpen: boolean; onOpen: () => void;
+  canOpen: boolean; onOpen: () => void; canEdit: boolean; onEdit: () => void; shuffling: boolean;
 }) {
   const rows = [
     { id: match.song_a, votes: match.votes_a },
@@ -80,8 +81,9 @@ function MatchCard({ match, subsById, owners, canOpen, onOpen }: {
     );
   };
   return (
-    <div className={`overflow-hidden rounded-xl border ${
-      match.status === 'open' || match.status === 'listening' ? 'border-fuchsia-500/60 ring-1 ring-fuchsia-500/30'
+    <div className={`overflow-hidden rounded-xl border transition ${
+      shuffling ? 'border-violet-500/60 ring-1 ring-violet-500/40'
+        : match.status === 'open' || match.status === 'listening' ? 'border-fuchsia-500/60 ring-1 ring-fuchsia-500/30'
         : match.status === 'discussion' ? 'border-amber-500/50'
         : 'border-zinc-800'
     } bg-zinc-900/40`}>
@@ -101,6 +103,17 @@ function MatchCard({ match, subsById, owners, canOpen, onOpen }: {
         <div className="bg-fuchsia-500/15 py-1.5 text-center text-xs font-semibold text-fuchsia-300">
           🎧 Listening
         </div>
+      )}
+      {match.overridden && (
+        <div className="bg-amber-500/10 py-1 text-center text-[11px] font-semibold uppercase tracking-wide text-amber-300/90">
+          Host's pick
+        </div>
+      )}
+      {canEdit && (
+        <button onClick={onEdit}
+          className="min-h-[34px] w-full border-t border-zinc-800 py-1.5 text-xs font-medium text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200">
+          Change winner
+        </button>
       )}
       {match.status === 'discussion' && (
         <div className="bg-amber-500/15 py-1.5 text-center text-xs font-semibold text-amber-300">

@@ -82,7 +82,7 @@ export default function MatchPanel({ match, subsById, state }: {
         ? 'No votes came in. The organizer will reopen voting.'
         : 'Votes were even. The organizer will reopen voting.';
   } else if (revealed) {
-    status = 'Match complete.';
+    status = match.overridden ? 'Match complete. The organizer picked the winner.' : 'Match complete.';
   }
 
   return (
@@ -107,12 +107,14 @@ export default function MatchPanel({ match, subsById, state }: {
             votes={s.votes}
             revealed={revealed}
             winner={!!match.winner && match.winner === s.id}
+            overridden={match.overridden}
             out={!!s.id && s.id === match.excluded}
             owner={s.id ? owners[s.id] : undefined}
             selected={!!s.id && choice === s.id}
             canVote={!isPresenter}
             disabled={!open || sittingOut}
             showPlayer={showPlayers}
+            audioOnly={!!room.params.audio_only}
             large={isPresenter}
             onVote={() => s.id && vote(s.id)}
           />
@@ -151,11 +153,11 @@ export default function MatchPanel({ match, subsById, state }: {
   );
 }
 
-function SongChoice({ song, label, votes, revealed, winner, out, owner, selected, canVote, disabled, showPlayer, large, onVote }: {
+function SongChoice({ song, label, votes, revealed, winner, overridden, out, owner, selected, canVote, disabled, showPlayer, audioOnly, large, onVote }: {
   song: PublicSubmission | null | undefined;
-  label: string; votes: number | null; revealed: boolean; winner: boolean; out: boolean;
+  label: string; votes: number | null; revealed: boolean; winner: boolean; overridden: boolean; out: boolean;
   owner: string | undefined; selected: boolean; canVote: boolean; disabled: boolean;
-  showPlayer: boolean; large: boolean; onVote: () => void;
+  showPlayer: boolean; audioOnly: boolean; large: boolean; onVote: () => void;
 }) {
   if (!song) return <div className="rounded-xl border border-zinc-800 p-6 text-center text-zinc-600">TBD</div>;
   return (
@@ -164,7 +166,7 @@ function SongChoice({ song, label, votes, revealed, winner, out, owner, selected
         : selected ? 'border-fuchsia-500/70'
         : 'border-zinc-800'
     } bg-zinc-950/60 ${out ? 'opacity-45' : ''}`}>
-      {showPlayer ? <SongPlayer song={song} /> : <SongThumb song={song} />}
+      {showPlayer ? <SongPlayer song={song} audioOnly={audioOnly} /> : <SongThumb song={song} />}
       <div className="p-3">
         <p className={`line-clamp-2 font-medium ${large ? 'text-xl' : ''}`} title={song.title}>{song.title}</p>
         {owner && <p className="truncate text-xs text-zinc-500">picked by {owner}</p>}
@@ -173,7 +175,7 @@ function SongChoice({ song, label, votes, revealed, winner, out, owner, selected
             <span className="text-sm text-zinc-500">Out of the re-vote</span>
           ) : revealed ? (
             <span className={`text-sm font-bold ${winner ? 'text-emerald-300' : 'text-zinc-500'}`}>
-              {votes ?? 0} vote{votes === 1 ? '' : 's'} {winner && '· winner'}
+              {votes ?? 0} vote{votes === 1 ? '' : 's'} {winner && (overridden ? "· host's pick" : '· winner')}
             </span>
           ) : canVote ? (
             <button onClick={onVote} disabled={disabled}
@@ -189,11 +191,12 @@ function SongChoice({ song, label, votes, revealed, winner, out, owner, selected
   );
 }
 
-function SongPlayer({ song }: { song: PublicSubmission }) {
+// The room's audio-only setting overrides each submitter's choice.
+function SongPlayer({ song, audioOnly }: { song: PublicSubmission; audioOnly: boolean }) {
   if (!song.youtube_id) {
     return <div className="flex h-32 items-center justify-center text-zinc-600">No preview</div>;
   }
-  if (song.media_type === 'audio') return <YouTubeAudio youtubeId={song.youtube_id} title={song.title} />;
+  if (audioOnly || song.media_type === 'audio') return <YouTubeAudio youtubeId={song.youtube_id} title={song.title} />;
   return <YouTubeVideo youtubeId={song.youtube_id} title={song.title} />;
 }
 
