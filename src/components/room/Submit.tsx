@@ -36,6 +36,8 @@ function PickForm({ session, room, players }: ReadyRoomState) {
   const [check, setCheck] = useState<{ id: string; result: YouTubeCheck | null } | null>(null);
   const [autoTitle, setAutoTitle] = useState('');
   const ytId = parseYouTubeId(url);
+  // The host can make every song audio-only; then there's no choice to make.
+  const audioOnly = !!room.params.audio_only;
 
   useEffect(() => {
     if (!ytId) { setCheck(null); return; }
@@ -73,7 +75,7 @@ function PickForm({ session, room, players }: ReadyRoomState) {
     }
     setBusy(true);
     try {
-      await submitPick(session.sessionToken, title.trim() || 'Untitled', url.trim(), ytId, media);
+      await submitPick(session.sessionToken, title.trim() || 'Untitled', url.trim(), ytId, audioOnly ? 'audio' : media);
       setTitle(''); setUrl(''); setMedia('video'); setAutoTitle(''); setCheck(null);
       await load();
     } catch (err) { setError((err as Error).message); }
@@ -106,7 +108,7 @@ function PickForm({ session, room, players }: ReadyRoomState) {
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{p.title}</p>
                 <p className="text-xs text-zinc-500">
-                  {p.media_type === 'audio' ? '🎧 Audio only' : '📺 Video'}
+                  {audioOnly || p.media_type === 'audio' ? '🎧 Audio only' : '📺 Video'}
                 </p>
               </div>
               <button onClick={() => remove(p.id)}
@@ -136,15 +138,21 @@ function PickForm({ session, room, players }: ReadyRoomState) {
               placeholder="Song label (fills in from the link)"
               className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:border-fuchsia-500"
             />
-            <div className="flex items-center gap-2">
-              <MediaPill active={media === 'video'} onClick={() => setMedia('video')}>📺 Video</MediaPill>
-              <MediaPill active={media === 'audio'} onClick={() => setMedia('audio')}>🎧 Audio only</MediaPill>
-            </div>
-            <p className="text-xs text-zinc-500">
-              {media === 'audio'
-                ? 'Audio only plays the song with the video hidden.'
-                : 'Video shows the YouTube video while the song plays.'}
-            </p>
+            {audioOnly ? (
+              <p className="text-xs text-zinc-500">🎧 This room plays every song audio only, with the video hidden.</p>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <MediaPill active={media === 'video'} onClick={() => setMedia('video')}>📺 Video</MediaPill>
+                  <MediaPill active={media === 'audio'} onClick={() => setMedia('audio')}>🎧 Audio only</MediaPill>
+                </div>
+                <p className="text-xs text-zinc-500">
+                  {media === 'audio'
+                    ? 'Audio only plays the song with the video hidden.'
+                    : 'Video shows the YouTube video while the song plays.'}
+                </p>
+              </>
+            )}
             <button type="submit" disabled={busy}
               className="w-full rounded-xl bg-fuchsia-600 px-4 py-2.5 font-semibold text-white transition hover:bg-fuchsia-500 disabled:opacity-50">
               {busy ? 'Adding…' : 'Add pick'}
